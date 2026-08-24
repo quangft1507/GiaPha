@@ -1166,3 +1166,44 @@ body[data-theme="dark"] {
     margin: 0;
 }
 
+/* Responsive adjustments for mobile */
+@media (max-width: 768px) {
+  .app-header {
+    height: auto;
+    min-height: 50px;
+    flex-wrap: wrap;
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  .app-header .toolbar-left {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .app-header .toolbar-right {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-start;
+  }
+  .tree-container, .table-container {
+    height: calc(100vh - 120px);
+  }
+  .tree-title {
+    font-size: 1rem;
+  }
+  .btn-group .btn, .app-header .btn {
+    font-size: 11px !important;
+    padding: 4px 8px !important;
+    height: 30px !important;
+  }
+  .app-header select {
+    font-size: 11px !important;
+    height: 30px !important;
+    width: auto !important;
+    min-width: 100px;
+  }
+}
+
