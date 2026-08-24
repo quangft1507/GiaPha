@@ -634,7 +634,7 @@ class FamilyTreeVisualization {
         if (!this.width || !this.height) return;
         this.svg.transition().duration(750).call(
             this.zoom.transform,
-            d3.zoomIdentity.translate(this.width/2, 100).scale(0.8)
+            d3.zoomIdentity.translate(this.width/2, 100).scale(this.width < 768 ? 0.4 : 0.8)
         );
     }
 }
