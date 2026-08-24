@@ -396,7 +396,7 @@ class FamilyTreeVisualization {
         const isCaretaker = this.caretakerIds && this.caretakerIds.has(data.id);
         
         return `
-            <div style="background-color: #ffffff; border: 2px solid ${borderColor}; border-radius: 10px; width: 100%; height: 100%; display: flex; align-items: center; padding: 8px 10px; position: relative; box-sizing: border-box; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.12);">
+            <div style="background-color: #ffffff; border: 2px solid ${borderColor}; border-radius: 10px; width: ${this.nodeWidth}px; height: ${this.nodeHeight}px; display: flex; align-items: center; padding: 8px 10px; position: relative; box-sizing: border-box; -webkit-transform: translateZ(0); transform: translateZ(0); overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.12);">
                 <!-- Black Ribbon for Deceased (top-left) -->
                 ${data.isDeceased ? `<div style="position: absolute; top: -15px; left: -25px; width: 70px; height: 35px; background-color: #333; transform: rotate(-45deg); box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 1;"></div>` : ''}
                 
@@ -414,7 +414,7 @@ class FamilyTreeVisualization {
                 </div>
                 
                 <!-- Right details -->
-                <div style="flex: 1; padding: 0 10px; display: flex; flex-direction: column; justify-content: center; height: 100%; min-width: 0; box-sizing: border-box;">
+                <div style="flex: 1; padding: 0 10px; display: flex; flex-direction: column; justify-content: center; height: 100%; min-width: 0; box-sizing: border-box; -webkit-transform: translateZ(0); transform: translateZ(0);">
                     <div style="color: #111827; font-weight: 700; font-size: 18px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; text-align: center; font-family: 'Outfit', sans-serif; letter-spacing: -0.2px;">${fullName || '(Chưa có tên)'}</div>
                     <div style="color: #6b7280; font-size: 14px; text-align: center; margin-top: 3px;">${isMale ? 'Nam' : 'Nữ'}${data.birthDate ? ' • ' + new Date(data.birthDate).getFullYear() : ''}</div>
                     ${data.isDeceased ? `<div style="color: #6b7280; font-size: 13px; text-align: center; margin-top: 1px;">✝ Đã mất</div>` : ''}
