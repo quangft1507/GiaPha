@@ -32,4 +32,4 @@ public class BrowserLauncher {
             log.error("Không thể tự động mở trình duyệt. Vui lòng truy cập thủ công: {}", url, e);
         }
     }
-}
+}       
