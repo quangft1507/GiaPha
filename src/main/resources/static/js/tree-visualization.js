@@ -277,13 +277,10 @@ class FamilyTreeVisualization {
             })
             .on("dblclick", (event, d) => this.centerOnNode(d));
             
-        // Add HTML content using foreignObject
-        const fo = node.append("foreignObject")
-            .attr("width", this.nodeWidth)
-            .attr("height", this.nodeHeight);
-            
-        fo.append("xhtml:div")
-            .html(d => this.generateNodeHtml(d.data, d.depth + 1));
+        // Render node content using pure SVG
+        node.each((d, i, nodes) => {
+            this.renderNodeCard(d3.select(nodes[i]), d.data, d.depth + 1);
+        });
             
         // Add quick add buttons as SVG elements layered on top
         const btnGroup = node.append("g").attr("class", "node-actions");
@@ -342,11 +339,7 @@ class FamilyTreeVisualization {
                     })
                     .on("contextmenu", (event) => this.onContextMenu(event, spouse));
                     
-                spouseGroup.append("foreignObject")
-                    .attr("width", this.nodeWidth)
-                    .attr("height", this.nodeHeight)
-                    .append("xhtml:div")
-                    .html(this.generateNodeHtml(spouse, d.depth + 1));
+                this.renderNodeCard(spouseGroup, spouse, d.depth + 1);
                     
                 // Spouse Menu Button
                 const spouseBtnMenu = spouseGroup.append("g")
@@ -386,42 +379,172 @@ class FamilyTreeVisualization {
         this.fitToScreen();
     }
     
-    generateNodeHtml(data, generation) {
+    renderNodeCard(container, data, generation) {
         const isMale = data.gender === 'NAM';
-        // Light theme colors
         const borderColor = isMale ? '#1a56c4' : '#b5245e';
         const avatarBg   = isMale ? '#dbeafe' : '#fce7f3';
         const badgeBg    = isMale ? '#1a56c4' : '#b5245e';
-        const fullName = data.name || [data.ho, data.tenDem, data.ten].filter(Boolean).join(' ');
+        const fullName = data.name || [data.ho, data.tenDem, data.ten].filter(Boolean).join(' ') || '(Chưa có tên)';
         const isCaretaker = this.caretakerIds && this.caretakerIds.has(data.id);
-        
-        return `
-            <div style="background-color: #ffffff; border: 2px solid ${borderColor}; border-radius: 10px; width: 100%; height: 100%; display: flex; align-items: center; padding: 8px 10px; position: relative; box-sizing: border-box; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.12);">
-                <!-- Black Ribbon for Deceased (top-left) -->
-                ${data.isDeceased ? `<div style="position: absolute; top: -15px; left: -25px; width: 70px; height: 35px; background-color: #333; transform: rotate(-45deg); box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 1;"></div>` : ''}
-                
-                <!-- Gold Ribbon for Caretaker (top-right) -->
-                ${isCaretaker ? `<div style="position: absolute; top: -15px; right: -25px; width: 70px; height: 35px; background-color: #d4a017; transform: rotate(45deg); box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 1;"></div>` : ''}
-                
-                <!-- ID badge top-left -->
-                <div style="position: absolute; top: 5px; left: ${data.isDeceased ? '32px' : '7px'}; background: ${badgeBg}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; z-index: 2;">#${data.id}</div>
-                <!-- Generation badge top-right (shifted left to make room for menu) -->
-                <div style="position: absolute; top: 5px; right: ${isCaretaker ? '60px' : '36px'}; background: #f0ede6; color: #5a4a3a; padding: 2px 6px; border-radius: 4px; font-size: 10px; z-index: 2; font-weight: 700;">Đời ${generation}</div>
-                
-                <!-- Avatar -->
-                <div style="width: 56px; height: 56px; border-radius: 50%; background: ${avatarBg}; margin-right: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; z-index: 2; margin-top: 16px; border: 2px solid ${borderColor};">
-                    ${data.avatarUrl ? `<img src="${data.avatarUrl}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="font-size:28px;">${isMale ? '👨' : '👩'}</span>`}
-                </div>
-                
-                <!-- Right details -->
-                <div style="flex: 1; padding: 0 10px; display: flex; flex-direction: column; justify-content: center; height: 100%; min-width: 0; box-sizing: border-box;">
-                    <div style="color: #111827; font-weight: 700; font-size: 18px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; text-align: center; font-family: 'Outfit', sans-serif; letter-spacing: -0.2px;">${fullName || '(Chưa có tên)'}</div>
-                    <div style="color: #6b7280; font-size: 14px; text-align: center; margin-top: 3px;">${isMale ? 'Nam' : 'Nữ'}${data.birthDate ? ' • ' + new Date(data.birthDate).getFullYear() : ''}</div>
-                    ${data.isDeceased ? `<div style="color: #6b7280; font-size: 13px; text-align: center; margin-top: 1px;">✝ Đã mất</div>` : ''}
-                    ${isCaretaker ? `<div style="color: #b8860b; font-size: 13px; text-align: center; font-weight: bold; margin-top: 1px;">⭐ Cúng dường</div>` : ''}
-                </div>
-            </div>
-        `;
+        const birthYear = data.birthDate ? new Date(data.birthDate).getFullYear() : null;
+
+        const card = container.append("g").attr("class", "node-card-content");
+
+        // Background Card
+        card.append("rect")
+            .attr("width", this.nodeWidth)
+            .attr("height", this.nodeHeight)
+            .attr("rx", 10)
+            .attr("fill", "#ffffff")
+            .attr("stroke", borderColor)
+            .attr("stroke-width", 2)
+            .style("filter", "drop-shadow(0 2px 6px rgba(0,0,0,0.12))");
+
+        // Black Ribbon for Deceased (top-left)
+        if (data.isDeceased) {
+            card.append("path")
+                .attr("d", "M 0 35 L 35 0 L 55 0 L 0 55 Z")
+                .attr("fill", "#333333")
+                .style("opacity", 0.9);
+        }
+
+        // Gold Ribbon for Caretaker (top-right)
+        if (isCaretaker) {
+            const w = this.nodeWidth;
+            card.append("path")
+                .attr("d", `M ${w - 55} 0 L ${w - 35} 0 L ${w} 35 L ${w} 55 Z`)
+                .attr("fill", "#d4a017")
+                .style("opacity", 0.9);
+        }
+
+        // ID Badge (top-left)
+        if (data.id) {
+            const idX = data.isDeceased ? 38 : 10;
+            const idText = `#${data.id}`;
+            const idBadgeW = Math.max(34, idText.length * 7 + 14);
+            card.append("rect")
+                .attr("x", idX)
+                .attr("y", 7)
+                .attr("width", idBadgeW)
+                .attr("height", 18)
+                .attr("rx", 4)
+                .attr("fill", badgeBg);
+
+            card.append("text")
+                .attr("x", idX + idBadgeW / 2)
+                .attr("y", 20)
+                .attr("fill", "#ffffff")
+                .attr("font-size", "11px")
+                .attr("font-weight", "bold")
+                .attr("text-anchor", "middle")
+                .style("font-family", "'Inter', sans-serif")
+                .text(idText);
+        }
+
+        // Generation Badge (top-right)
+        if (generation) {
+            const genText = `Đời ${generation}`;
+            const genBadgeW = 50;
+            const genX = isCaretaker ? (this.nodeWidth - 60 - genBadgeW) : (this.nodeWidth - 36 - genBadgeW);
+            card.append("rect")
+                .attr("x", genX)
+                .attr("y", 7)
+                .attr("width", genBadgeW)
+                .attr("height", 18)
+                .attr("rx", 4)
+                .attr("fill", "#f0ede6");
+
+            card.append("text")
+                .attr("x", genX + genBadgeW / 2)
+                .attr("y", 20)
+                .attr("fill", "#5a4a3a")
+                .attr("font-size", "11px")
+                .attr("font-weight", "bold")
+                .attr("text-anchor", "middle")
+                .style("font-family", "'Inter', sans-serif")
+                .text(genText);
+        }
+
+        // Avatar Circle & Emoji/Image
+        const avatarCX = 48;
+        const avatarCY = 68;
+        card.append("circle")
+            .attr("cx", avatarCX)
+            .attr("cy", avatarCY)
+            .attr("r", 26)
+            .attr("fill", avatarBg)
+            .attr("stroke", borderColor)
+            .attr("stroke-width", 2);
+
+        if (data.avatarUrl) {
+            const clipId = `avatar-clip-${data.id || Math.floor(Math.random() * 100000)}`;
+            card.append("clipPath")
+                .attr("id", clipId)
+                .append("circle")
+                .attr("cx", avatarCX)
+                .attr("cy", avatarCY)
+                .attr("r", 25);
+
+            card.append("image")
+                .attr("x", avatarCX - 26)
+                .attr("y", avatarCY - 26)
+                .attr("width", 52)
+                .attr("height", 52)
+                .attr("href", data.avatarUrl)
+                .attr("clip-path", `url(#${clipId})`)
+                .attr("preserveAspectRatio", "xMidYMid slice");
+        } else {
+            card.append("text")
+                .attr("x", avatarCX)
+                .attr("y", avatarCY + 9)
+                .attr("font-size", "26px")
+                .attr("text-anchor", "middle")
+                .text(isMale ? '👨' : '👩');
+        }
+
+        // Name
+        const nameX = 86;
+        const textMaxLen = 17;
+        const displayName = fullName.length > textMaxLen ? fullName.substring(0, textMaxLen - 2) + '...' : fullName;
+
+        card.append("text")
+            .attr("x", nameX)
+            .attr("y", 54)
+            .attr("font-family", "'Outfit', sans-serif")
+            .attr("font-size", "16px")
+            .attr("font-weight", "700")
+            .attr("fill", "#111827")
+            .text(displayName);
+
+        // Gender & Birth Year
+        const genderYearText = `${isMale ? 'Nam' : 'Nữ'}${birthYear ? ' • ' + birthYear : ''}`;
+        card.append("text")
+            .attr("x", nameX)
+            .attr("y", 76)
+            .attr("font-family", "'Inter', sans-serif")
+            .attr("font-size", "13px")
+            .attr("fill", "#6b7280")
+            .text(genderYearText);
+
+        // Status Line
+        if (data.isDeceased) {
+            card.append("text")
+                .attr("x", nameX)
+                .attr("y", 96)
+                .attr("font-family", "'Inter', sans-serif")
+                .attr("font-size", "12px")
+                .attr("fill", "#ef4444")
+                .text("✝ Đã mất");
+        } else if (isCaretaker) {
+            card.append("text")
+                .attr("x", nameX)
+                .attr("y", 96)
+                .attr("font-family", "'Inter', sans-serif")
+                .attr("font-size", "12px")
+                .attr("font-weight", "600")
+                .attr("fill", "#b8860b")
+                .text("⭐ Cúng dường");
+        }
     }
     
     renderGenerationLabels(root) {
