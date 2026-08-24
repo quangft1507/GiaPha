@@ -23,7 +23,7 @@ public class Media {
 
     private String fileType;
 
-    @Column(columnDefinition = "NVARCHAR(255)")
+    @Column(length = 255)
     private String caption;
 
     @Builder.Default

@@ -23,7 +23,7 @@ public class FuneralCare {
     @Column(nullable = false)
     private CareType careType;
 
-    @Column(columnDefinition = "NVARCHAR(MAX)")
+    @Column(columnDefinition = "TEXT")
     private String notes;
 
     private LocalDate assignedDate;
