@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title>Danh sách Gia phả</title>
+</head>
+<body data-theme="dark"> <!-- Force dark theme for premium look -->
+    <div layout:fragment="content" class="page-container glass-container">
+        
+        <div class="page-header premium-header">
+            <div class="header-content">
+                <h1 class="page-title gradient-text">Quản lý Gia phả</h1>
+                <p class="page-subtitle">Lưu giữ và kết nối những thế hệ gia đình</p>
+            </div>
+            <button class="btn btn-primary btn-glow btn-lg" id="btn-create-tree">
+                <span class="icon">➕</span> Tạo Gia phả mới
+            </button>
+        </div>
+
+        <div class="tree-cards-grid" id="treeListContainer">
+            <!-- Tree cards will be injected here by JS -->
+            <div class="loading-state glass-panel">
+                <div class="spinner"></div>
+                <p>Đang tải dữ liệu...</p>
+            </div>
+        </div>
+
+        <!-- Create Tree Modal -->
+        <div id="createTreeModalOverlay" class="modal-overlay">
+            <div id="createTreeModal" class="modal glass-modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 id="modalTitle" class="gradient-text">Tạo gia phả mới</h2>
+                        <button class="close-btn" id="closeCreateTreeModal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="createTreeForm">
+                            <input type="hidden" id="editTreeId" name="id">
+                            <div class="form-group glass-input-group">
+                                <label for="treeName">Tên gia phả <span class="text-danger">*</span></label>
+                                <input type="text" id="treeName" name="name" class="form-control glass-input" placeholder="VD: Gia phả họ Nguyễn" required>
+                            </div>
+                            <div class="form-group glass-input-group">
+                                <label for="treeDescription">Mô tả</label>
+                                <textarea id="treeDescription" name="description" class="form-control glass-input" rows="3" placeholder="Ghi chú về nguồn gốc, quê quán..."></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-glass" id="btn-cancel-create">Hủy</button>
+                                <button type="submit" class="btn btn-primary btn-glow">Lưu gia phả</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <th:block layout:fragment="extra-scripts">
+        <script th:inline="javascript">
+            // Force dark theme on body for this page
+            document.body.setAttribute('data-theme', 'dark');
+
+            document.addEventListener('DOMContentLoaded', () => {
+                loadTrees();
+                
+                // Modal handlers
+                const modalOverlay = document.getElementById('createTreeModalOverlay');
+                const btnCreate = document.getElementById('btn-create-tree');
+                const btnClose = document.getElementById('closeCreateTreeModal');
+                const btnCancel = document.getElementById('btn-cancel-create');
+                const form = document.getElementById('createTreeForm');
+                
+                const editTreeId = document.getElementById('editTreeId');
+                const modalTitle = document.getElementById('modalTitle');
+                
+                btnCreate.addEventListener('click', () => {
+                    form.reset();
+                    editTreeId.value = '';
+                    modalTitle.textContent = 'Tạo Gia phả mới';
+                    modalOverlay.classList.add('active');
+                    setTimeout(() => document.getElementById('treeName').focus(), 100);
+                });
+                
+                const closeModal = () => modalOverlay.classList.remove('active');
+                btnClose.addEventListener('click', closeModal);
+                btnCancel.addEventListener('click', closeModal);
+                modalOverlay.addEventListener('click', (e) => {
+                    if (e.target === modalOverlay) closeModal();
+                });
+                
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    const id = editTreeId.value;
+                    const name = document.getElementById('treeName').value;
+                    const description = document.getElementById('treeDescription').value;
+                    
+                    const method = id ? 'PUT' : 'POST';
+                    const url = id ? '/api/trees/' + id : '/api/trees';
+                    
+                    const btnSubmit = form.querySelector('[type="submit"]');
+                    const originalText = btnSubmit.innerHTML;
+                    btnSubmit.innerHTML = 'Đang lưu...';
+                    btnSubmit.disabled = true;
+                    
+                    try {
+                        const response = await fetch(url, {
+                            method: method,
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ name, description })
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            closeModal();
+                            form.reset();
+                            
+                            // Show success toast
+                            if (window.showToast) {
+                                showToast('Đã lưu gia phả thành công!', 'success');
+                            }
+                            
+                            if (!id) {
+                                // Transition to view with a slight delay
+                                setTimeout(() => window.location.href = '/trees/' + data.id + '/view', 500);
+                            } else {
+                                loadTrees();
+                            }
+                        } else {
+                            if (window.showToast) showToast('Có lỗi xảy ra khi lưu!', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error saving tree:', error);
+                        if (window.showToast) showToast('Mất kết nối máy chủ!', 'error');
+                    } finally {
+                        btnSubmit.innerHTML = originalText;
+                        btnSubmit.disabled = false;
+                    }
+                });
+                
+                // Event delegation for edit and delete buttons
+                document.getElementById('treeListContainer').addEventListener('click', async (e) => {
+                    const btnDelete = e.target.closest('.btn-delete-tree');
+                    if (btnDelete) {
+                        const id = btnDelete.getAttribute('data-id');
+                        if (confirm('⚠️ CẢNH BÁO: Bạn có chắc chắn muốn xóa gia phả này? TOÀN BỘ dữ liệu thành viên sẽ bị xóa vĩnh viễn và không thể khôi phục!')) {
+                            try {
+                                const res = await fetch('/api/trees/' + id, { method: 'DELETE' });
+                                if (res.ok) {
+                                    if(window.showToast) showToast('Đã xóa gia phả', 'success');
+                                    // Animate removal
+                                    const card = document.querySelector(`.tree-card[data-id="${id}"]`);
+                                    if(card) {
+                                        card.style.transform = 'scale(0.8)';
+                                        card.style.opacity = '0';
+                                        setTimeout(() => loadTrees(), 300);
+                                    } else {
+                                        loadTrees();
+                                    }
+                                }
+                            } catch (err) {
+                                console.error('Lỗi khi xóa:', err);
+                                if(window.showToast) showToast('Lỗi khi xóa', 'error');
+                            }
+                        }
+                    }
+                    
+                    const btnEdit = e.target.closest('.btn-edit-tree');
+                    if (btnEdit) {
+                        const id = btnEdit.getAttribute('data-id');
+                        try {
+                            const res = await fetch('/api/trees/' + id);
+                            if (res.ok) {
+                                const data = await res.json();
+                                editTreeId.value = data.id;
+                                document.getElementById('treeName').value = data.name;
+                                document.getElementById('treeDescription').value = data.description;
+                                modalTitle.textContent = 'Chỉnh sửa Gia phả';
+                                modalOverlay.classList.add('active');
+                            }
+                        } catch (err) {
+                            console.error('Lỗi khi tải thông tin cây:', err);
+                        }
+                    }
+                });
+            });
+
+            async function loadTrees() {
+                const container = document.getElementById('treeListContainer');
+                try {
+                    const response = await fetch('/api/trees');
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    const trees = await response.json();
+                    renderTreeCards(trees, container);
+                } catch (error) {
+                    container.innerHTML = '<div class="error-state glass-panel"><div class="icon">⚠️</div><h3>Không thể tải dữ liệu</h3><p>Vui lòng kiểm tra lại kết nối hoặc thử lại sau.</p></div>';
+                    console.error('Error loading trees:', error);
+                }
+            }
+
+            function renderTreeCards(trees, container) {
+                if (!trees || trees.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state glass-panel premium-empty">
+                            <div class="empty-icon-glow">
+                                <div class="empty-icon">🌳</div>
+                            </div>
+                            <h3 class="gradient-text">Chào mừng bạn đến với Gia Phả</h3>
+                            <p>Nơi lưu giữ, tôn vinh và kết nối những giá trị truyền thống của dòng họ qua nhiều thế hệ.</p>
+                            <p class="text-muted">Bạn chưa có gia phả nào. Hãy bắt đầu ngay!</p>
+                            <button class="btn btn-primary btn-glow btn-lg mt-4" onclick="document.getElementById('btn-create-tree').click()">
+                                ➕ Tạo Gia phả đầu tiên
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '';
+                trees.forEach((tree, index) => {
+                    const date = new Date(tree.createdAt || Date.now()).toLocaleDateString('vi-VN');
+                    // Add animation delay for stagger effect
+                    const delay = index * 0.1;
+                    
+                    html += `
+                        <div class="tree-card glass-card fade-in-up" data-id="${tree.id}" style="animation-delay: ${delay}s">
+                            <div class="card-glow-bg"></div>
+                            <div class="tree-card-header">
+                                <h3 class="tree-card-title">${escapeHtml(tree.name)}</h3>
+                                <span class="badge glass-badge">👥 ${tree.memberCount || 0} thành viên</span>
+                            </div>
+                            <div class="tree-card-body">
+                                <p class="tree-description">${escapeHtml(tree.description || 'Chưa có mô tả...')}</p>
+                                <div class="tree-meta">
+                                    <span class="meta-item" title="Ngày tạo">📅 ${date}</span>
+                                </div>
+                            </div>
+                            <div class="tree-card-actions">
+                                <a href="/trees/${tree.id}/view" class="btn btn-primary btn-glow w-100 justify-center">
+                                    Mở Gia phả ➡️
+                                </a>
+                                <div class="action-buttons-row">
+                                    <button class="btn btn-glass btn-sm btn-edit-tree" data-id="${tree.id}">
+                                        ✏️ Sửa
+                                    </button>
+                                    <button class="btn btn-glass btn-sm text-danger btn-delete-tree" data-id="${tree.id}">
+                                        🗑️ Xóa
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+            }
+            
+            function escapeHtml(unsafe) {
+                return (unsafe || '').toString()
+                     .replace(/&/g, "&amp;")
+                     .replace(/</g, "&lt;")
+                     .replace(/>/g, "&gt;")
+                     .replace(/"/g, "&quot;")
+                     .replace(/'/g, "&#039;");
+            }
+        </script>
+    </th:block>
+</body>
+</html>

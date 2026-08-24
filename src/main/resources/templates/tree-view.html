@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sơ đồ gia phả - Ứng dụng</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-dark: #0f1115;
+            --bg-panel: #1a1d24;
+            --bg-glass: rgba(26, 29, 36, 0.7);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --text-main: #f0f0f0;
+            --text-muted: #9ba1a6;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --success: #10b981;
+            --male: #3b82f6;
+            --female: #ec4899;
+            --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            --font-main: 'Inter', sans-serif;
+            --font-heading: 'Outfit', sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow: hidden; /* No scroll on body */
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Toolbar (Glassmorphism) */
+        .glass-toolbar {
+            height: 64px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-glass);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .toolbar-left, .toolbar-right { display: flex; align-items: center; gap: 16px; }
+        
+        .tree-title {
+            font-family: var(--font-heading);
+            font-weight: 600;
+            font-size: 1.25rem;
+            color: #fff;
+            margin: 0 16px;
+        }
+
+        /* Buttons */
+        .btn {
+            font-family: var(--font-main);
+            font-weight: 500;
+            font-size: 0.875rem;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+        
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: var(--danger-hover); }
+
+        .btn-outline { background: transparent; border: 1px solid var(--border-glass); color: var(--text-main); }
+        .btn-outline:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.2); }
+
+        .btn-group { display: flex; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 4px; }
+        .btn-group .btn { background: transparent; color: var(--text-muted); padding: 6px 16px; border-radius: 6px; box-shadow: none; border: none; }
+        .btn-group .btn.active { background: var(--bg-panel); color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+
+        /* Main Workspace */
+        .main-workspace {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 100% 100%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 0% 0%, rgba(236, 72, 153, 0.03) 0%, transparent 50%);
+        }
+
+        .workspace-view {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            overflow: hidden;
+        }
+        .workspace-view.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        /* Tree Container */
+        .tree-container { width: 100%; height: 100%; cursor: grab; }
+        .tree-container:active { cursor: grabbing; }
+        
+        .link-default { fill: none; stroke: rgba(255, 255, 255, 0.2); stroke-width: 2px; }
+        .link-spouse { fill: none; }
+
+        /* Table Container */
+        #table-container { overflow-y: auto; padding: 24px; }
+        .data-table {
+            width: 100%; border-collapse: collapse; background: var(--bg-panel);
+            border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-lg);
+        }
+        .data-table th, .data-table td {
+            padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-glass);
+        }
+        .data-table th {
+            background: rgba(0,0,0,0.2); font-weight: 600; color: var(--text-muted); font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .data-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+        /* Info Side Panel */
+        .info-panel {
+            position: absolute;
+            top: 16px; right: -400px; bottom: 16px;
+            width: 360px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+            transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            z-index: 50;
+            overflow: hidden;
+        }
+        .info-panel.active { right: 16px; }
+
+        .panel-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-glass);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            background: rgba(255,255,255,0.02);
+        }
+        .panel-header h3 { font-family: var(--font-heading); font-size: 1.25rem; margin-bottom: 4px; }
+        .panel-subtitle { color: var(--text-muted); font-size: 0.875rem; }
+        
+        .close-icon {
+            cursor: pointer; color: var(--text-muted); background: transparent; border: none; font-size: 1.5rem;
+            line-height: 1; padding: 4px; border-radius: 50%; transition: all 0.2s;
+        }
+        .close-icon:hover { color: white; background: rgba(255,255,255,0.1); }
+
+        .panel-body { padding: 20px; overflow-y: auto; flex: 1; }
+        
+        .info-grid { display: grid; gap: 16px; }
+        .info-item { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 1px solid var(--border-glass); }
+        .info-label { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em; }
+        .info-value { font-weight: 500; font-size: 0.95rem; }
+        
+        .panel-footer {
+            padding: 16px 20px; border-top: 1px solid var(--border-glass);
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(0,0,0,0.2);
+        }
+        .panel-footer .btn { width: 100%; justify-content: center; }
+        .panel-footer .btn-full { grid-column: span 2; }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 1000;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+        
+        .modal-content {
+            background: var(--bg-panel); border: 1px solid var(--border-glass);
+            border-radius: 16px; width: 90%; max-width: 700px;
+            box-shadow: var(--shadow-lg);
+            transform: translateY(20px); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            max-height: 90vh; display: flex; flex-direction: column;
+        }
+        .modal-overlay.active .modal-content { transform: translateY(0); }
+
+        .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border-glass); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { font-family: var(--font-heading); font-size: 1.5rem; }
+        
+        .modal-body { padding: 24px; overflow-y: auto; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { display: flex; flex-direction: column; gap: 8px; }
+        .form-group.full { grid-column: span 2; }
+        
+        label { font-size: 0.875rem; color: var(--text-muted); font-weight: 500; }
+        .form-control {
+            background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass);
+            color: white; padding: 10px 14px; border-radius: 8px; font-family: var(--font-main);
+            transition: all 0.2s; outline: none;
+        }
+        .form-control:focus { border-color: var(--primary); background: rgba(0,0,0,0.5); box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+        .form-control:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        select.form-control option { background: var(--bg-panel); color: white; }
+
+        .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border-glass); display: flex; justify-content: flex-end; gap: 12px; }
+
+        /* Gender Selector */
+        .gender-selector { display: flex; gap: 8px; }
+        .gender-btn {
+            flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass);
+            border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 500;
+        }
+        .gender-btn.active[data-val="NAM"] { background: rgba(59, 130, 246, 0.2); border-color: var(--primary); color: var(--primary); }
+        .gender-btn.active[data-val="NU"] { background: rgba(236, 72, 153, 0.2); border-color: var(--female); color: var(--female); }
+        .gender-btn:not(.active):hover { background: rgba(255,255,255,0.05); }
+
+        /* Context Menu */
+        .context-menu {
+            position: fixed; background: var(--bg-panel); border: 1px solid var(--border-glass);
+            border-radius: 8px; box-shadow: var(--shadow-lg); padding: 8px 0; min-width: 200px;
+            z-index: 999; display: none; opacity: 0; transition: opacity 0.1s;
+        }
+        .context-menu.show { display: block; opacity: 1; }
+        .context-menu-item { padding: 10px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 0.875rem; transition: background 0.2s; }
+        .context-menu-item:hover { background: rgba(255,255,255,0.05); }
+        .context-menu-item.danger { color: var(--danger); }
+        .context-menu-item.danger:hover { background: rgba(239, 68, 68, 0.1); }
+        
+        /* Tooltip */
+        .custom-tooltip {
+            position: absolute; background: var(--bg-panel); color: white; padding: 8px 12px;
+            border-radius: 6px; font-size: 0.75rem; pointer-events: none; opacity: 0;
+            transition: opacity 0.2s; z-index: 1000; border: 1px solid var(--border-glass);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-family: var(--font-main); white-space: nowrap;
+        }
+
+        /* Toast Container for App.js */
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- Top Toolbar -->
+    <header class="glass-toolbar">
+        <div class="toolbar-left">
+            <a th:href="@{/trees}" class="btn btn-outline" style="text-decoration: none;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                Trang chủ
+            </a>
+            <h1 class="tree-title" id="treeNameDisplay" th:text="${tree != null ? tree.name : 'Sơ đồ Gia phả'}">Sơ đồ Gia phả</h1>
+        </div>
+        
+        <div class="toolbar-right">
+            <div class="btn-group">
+                <button class="btn active" id="btn-view-tree">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 3H6a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h4M16 17h6M16 13h6M16 21h6M14 21h2M14 17h2M14 13h2M14 7h-8M14 7v6M14 7V3"/></svg>
+                    Sơ đồ
+                </button>
+                <button class="btn" id="btn-view-table">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/><line x1="15" y1="9" x2="15" y2="21"/></svg>
+                    Bảng
+                </button>
+            </div>
+            <!-- Zoom Controls -->
+            <div class="btn-group" style="margin-right: 8px;">
+                <button class="btn" id="btn-zoom-in" title="Phóng to">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                </button>
+                <button class="btn" id="btn-zoom-reset" title="Vừa màn hình">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                </button>
+                <button class="btn" id="btn-zoom-out" title="Thu nhỏ">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                </button>
+            </div>
+            
+            <select id="filter-generation" class="form-control" style="margin-right: 8px; width: 120px; font-size: 13px; height: 36px;">
+                <option value="">-- Chọn đời --</option>
+            </select>
+            <select id="filter-branch" class="form-control" style="margin-right: 8px; width: 180px; font-size: 13px; height: 36px;" disabled>
+                <option value="">-- Chọn nhánh --</option>
+            </select>
+            
+            <button class="btn btn-outline" style="margin-right: 8px;" onclick="openExcelImportModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                Nhập Excel
+            </button>
+            <button class="btn btn-primary" id="btn-add-member-top" onclick="if(window.personFormManager) window.personFormManager.openAddRootForm()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Thêm thành viên
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="main-workspace">
+        
+        <!-- TREE VIEW -->
+        <div id="tree-container" class="workspace-view active">
+            <!-- D3 SVG injected here -->
+            <!-- Floating zoom indicator -->
+            <div id="zoom-indicator" style="position:absolute; bottom:20px; right:20px; background:rgba(255,255,255,0.9); border:1px solid #ddd; border-radius:8px; padding:6px 12px; font-size:13px; color:#333; z-index:10; box-shadow:0 2px 8px rgba(0,0,0,0.15); font-weight:600; pointer-events:none;">100%</div>
+        </div>
+        
+        <!-- TABLE VIEW -->
+        <div id="table-container" class="workspace-view">
+            <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <input type="text" id="searchInput" class="form-control" style="width: 250px;" placeholder="Tìm kiếm thành viên...">
+                <select id="filterGeneration" class="form-control" style="width: 150px;">
+                    <option value="">-- Chọn đời --</option>
+                </select>
+                <select id="filterBranch" class="form-control" style="width: 250px;">
+                    <option value="">-- Thuộc nhánh cụ --</option>
+                </select>
+                <button class="btn btn-outline" id="btn-refresh-table" style="margin-left: auto;">Tải lại dữ liệu</button>
+            </div>
+            
+            <div style="overflow-x: auto; border-radius: 12px; border: 1px solid var(--border-glass);">
+                <table class="data-table" id="personsTable">
+                    <thead>
+                        <tr>
+                            <th>Mã</th>
+                            <th>Họ tên</th>
+                            <th>Giới tính</th>
+                            <th>Đời</th>
+                            <th>Ngày sinh</th>
+                            <th>Trạng thái</th>
+                            <th>Người cúng dường</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="personsTableBody">
+                        <!-- Filled by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- INFO SIDE PANEL -->
+        <aside id="personDetailPanel" class="info-panel">
+            <div class="panel-header">
+                <div>
+                    <h3 id="detailName">Tên thành viên</h3>
+                    <div class="panel-subtitle" id="detailSubtitle">Đời thứ X • Thứ X</div>
+                </div>
+                <button class="close-icon" id="closeDetailPanel">&times;</button>
+            </div>
+            <div class="panel-body">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Ngày sinh</div>
+                        <div class="info-value" id="detailBirthDate">Không rõ</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Tình trạng</div>
+                        <div class="info-value" id="detailDeathDate">Đang sống</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Cha / Mẹ</div>
+                        <div class="info-value" id="detailParents">Không rõ</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Nơi sinh / Quê quán</div>
+                        <div class="info-value" id="detailBirthplace">Không rõ</div>
+                    </div>
+                    <div class="info-item" id="caretakerInfoItem" style="display: none; border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.05);">
+                        <div class="info-label" style="color: var(--primary);">Người cúng dường</div>
+                        <div class="info-value" id="detailCaretaker">Không rõ</div>
+                    </div>
+                    <div class="info-item" style="grid-column: span 2;">
+                        <div class="info-label">Ghi chú / Tiểu sử</div>
+                        <div class="info-value" id="detailBio" style="font-size: 0.875rem; color: var(--text-muted); line-height: 1.6;">Không có thông tin.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel-footer">
+                <button class="btn btn-primary btn-full" id="btn-edit-person">Chỉnh sửa thông tin</button>
+                <button class="btn btn-outline" id="btn-add-spouse-panel">Thêm Vợ/Chồng</button>
+                <button class="btn btn-outline" id="btn-add-child-panel">Thêm Con</button>
+                <button class="btn btn-danger btn-full" id="btn-delete-person" style="margin-top: 8px;">Xóa thành viên này</button>
+            </div>
+        </aside>
+
+    </main>
+
+    <!-- PERSON FORM MODAL -->
+    <div id="personFormModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="personFormTitle">Thêm thành viên</h2>
+                <button class="close-icon close-modal-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="personForm">
+                    <input type="hidden" id="personId" name="id">
+                    <div class="form-group full" id="parentGroup">
+                        <label>Là con của (Chọn Bố)</label>
+                        <select id="personParentId" name="parentId" class="form-control">
+                            <option value="">-- Không chọn (Thủy Tổ hoặc không rõ) --</option>
+                        </select>
+                    </div>
+                    <div class="form-group full" id="otherParentGroup" style="display: none; margin-bottom: 15px;">
+                        <label style="color: var(--primary);">Chọn Mẹ (do Bố có nhiều Vợ) *</label>
+                        <select id="otherParentId" name="otherParentId" class="form-control" style="border-color: var(--primary);">
+                            <option value="">-- Thuộc người chính (Chưa rõ mẹ/cha) --</option>
+                        </select>
+                    </div>
+                    <input type="hidden" id="personSpouseId" name="spouseId">
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Họ *</label>
+                            <input type="text" id="surname" name="surname" class="form-control" placeholder="Nguyễn" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Tên chính *</label>
+                            <input type="text" id="firstName" name="firstName" class="form-control" placeholder="Văn A" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Tên đệm / Gọi khác</label>
+                            <input type="text" id="middleName" name="middleName" class="form-control" placeholder="Tên phụ">
+                        </div>
+                        <div class="form-group">
+                            <label>Thứ tự sinh</label>
+                            <input type="number" id="birthOrder" name="birthOrder" class="form-control" min="1" value="1">
+                        </div>
+                        
+                        <div class="form-group full">
+                            <label>Giới tính</label>
+                            <input type="hidden" id="gender" name="gender" value="NAM">
+                            <div class="gender-selector">
+                                <div class="gender-btn active" data-val="NAM">👨 Nam</div>
+                                <div class="gender-btn" data-val="NU">👩 Nữ</div>
+                                <div class="gender-btn" data-val="KHAC">❓ Khác</div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Ngày sinh</label>
+                            <input type="date" id="birthDate" name="birthDate" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 8px;">
+                                <input type="checkbox" id="isDeceased" name="isDeceased"> Đã qua đời
+                            </label>
+                            <div id="deathDateGroup" style="display:none; transition: all 0.3s;">
+                                <input type="date" id="deathDate" name="deathDate" class="form-control" placeholder="Ngày mất">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Nơi sinh / Quê quán</label>
+                            <input type="text" id="birthplace" name="birthplace" class="form-control" placeholder="Hà Nội">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Nghề nghiệp</label>
+                            <input type="text" id="occupation" name="occupation" class="form-control" placeholder="Giáo viên">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Số điện thoại</label>
+                            <input type="text" id="phoneNumber" name="phoneNumber" class="form-control" placeholder="0912345678">
+                        </div>
+                        
+                        <!-- NGƯỜI CÚNG DƯỜNG (CARETAKER) - Bắt buộc là con cháu -->
+                        <div class="form-group full" id="caretakerGroup" style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); padding: 16px; border-radius: 8px;">
+                            <label style="color: var(--primary);">Người cúng dường (Chỉ hiện danh sách Con/Cháu trực hệ)</label>
+                            <select id="caretakerId" name="caretakerId" class="form-control">
+                                <option value="">-- Không có (Chưa có con cháu) --</option>
+                            </select>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">Tính năng này cho phép chọn người nhận trách nhiệm hương hỏa sau khi người này qua đời. Bạn chỉ có thể chọn tính năng này khi thành viên đã có con cháu trong hệ thống.</div>
+                        </div>
+
+                        <div class="form-group full">
+                            <label>Ghi chú / Tiểu sử</label>
+                            <textarea id="biography" name="biography" class="form-control" rows="3" placeholder="Thông tin thêm..."></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline close-modal-btn">Hủy bỏ</button>
+                <button type="submit" form="personForm" class="btn btn-primary">Lưu thông tin</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Excel Import Modal -->
+    <div id="excelImportModal" class="modal-overlay">
+        <div class="glass-panel" style="width: 500px; padding: 24px; background: var(--bg-panel); border: 1px solid var(--border-glass); border-radius: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="font-family: var(--font-heading); color: #fff; margin: 0;">Nhập dữ liệu từ Excel</h3>
+                <button class="btn-icon" onclick="closeExcelImportModal()" style="color: var(--text-muted); border: none; background: none; cursor: pointer; font-size: 1.5rem;">&times;</button>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <p style="margin-bottom: 12px; color: var(--text-muted); font-size: 0.9rem;">
+                    1. Tải về file mẫu (template) và điền danh sách thành viên theo đúng định dạng.
+                </p>
+                <a href="/api/trees/excel-template" target="_blank" class="btn btn-outline" style="display: flex; text-decoration: none; width: 100%; justify-content: center; margin-bottom: 20px; padding: 10px;">
+                    📥 Tải file mẫu Excel
+                </a>
+                
+                <p style="margin-bottom: 12px; color: var(--text-muted); font-size: 0.9rem;">
+                    2. Chọn file Excel đã điền dữ liệu để tải lên:
+                </p>
+                <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="form-control" style="width: 100%; padding: 10px; margin-bottom: 20px; box-sizing: border-box;">
+                
+                <div id="excelImportError" style="color: var(--danger); font-size: 0.85rem; margin-bottom: 15px; display: none;"></div>
+            </div>
+            
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button class="btn btn-outline" onclick="closeExcelImportModal()">Hủy</button>
+                <button class="btn btn-primary" id="btn-submit-excel" onclick="submitExcelImport()">Tải lên & Nhập</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTEXT MENU -->
+    <div id="contextMenu" class="context-menu">
+        <div class="context-menu-item" id="menu-edit">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Sửa thông tin
+        </div>
+        <div class="context-menu-item" id="menu-add-child">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Thêm Con
+        </div>
+        <div class="context-menu-item" id="menu-add-spouse">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            Thêm Vợ/Chồng
+        </div>
+        <div class="context-menu-item danger" id="menu-delete" style="border-top: 1px solid var(--border-glass); margin-top: 4px; padding-top: 8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            Xóa thành viên
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+    <div id="tooltip" class="custom-tooltip"></div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script th:src="@{/js/tree-visualization.js}"></script>
+    <script th:src="@{/js/person-form.js}"></script>
+    
+    <script>
+        function openExcelImportModal() {
+            document.getElementById('excelImportModal').classList.add('active');
+            document.getElementById('excelFileInput').value = '';
+            document.getElementById('excelImportError').style.display = 'none';
+        }
+        
+        function closeExcelImportModal() {
+            document.getElementById('excelImportModal').classList.remove('active');
+        }
+        
+        async function submitExcelImport() {
+            const fileInput = document.getElementById('excelFileInput');
+            const file = fileInput.files[0];
+            const errorDiv = document.getElementById('excelImportError');
+            
+            if (!file) {
+                errorDiv.textContent = 'Vui lòng chọn file Excel.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            const btnSubmit = document.getElementById('btn-submit-excel');
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = 'Đang xử lý...';
+            errorDiv.style.display = 'none';
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch(`/api/trees/${window.treeId || 1}/import`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    alert('Nhập dữ liệu thành công!');
+                    closeExcelImportModal();
+                    // Reload data
+                    if (window.personFormManager && typeof window.personFormManager.loadData === 'function') {
+                        window.personFormManager.loadData();
+                    }
+                    if (window.treeViz) window.treeViz.loadData();
+                    loadTableData();
+                } else {
+                    const text = await response.text();
+                    errorDiv.textContent = text || 'Có lỗi xảy ra khi nhập file.';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (err) {
+                errorDiv.textContent = 'Lỗi kết nối máy chủ.';
+                errorDiv.style.display = 'block';
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = 'Tải lên & Nhập';
+            }
+        }
+    </script>
+    
+    <script th:inline="javascript">
+        const treeId = [[${treeId != null ? treeId : 1}]];
+        window.treeId = treeId;
+        
+        // --- View Toggling ---
+        const btnTree = document.getElementById('btn-view-tree');
+        const btnTable = document.getElementById('btn-view-table');
+        const viewTree = document.getElementById('tree-container');
+        const viewTable = document.getElementById('table-container');
+
+        btnTree.addEventListener('click', () => {
+            btnTree.classList.add('active');
+            btnTable.classList.remove('active');
+            viewTree.classList.add('active');
+            viewTable.classList.remove('active');
+        });
+
+        btnTable.addEventListener('click', () => {
+            btnTable.classList.add('active');
+            btnTree.classList.remove('active');
+            viewTable.classList.add('active');
+            viewTree.classList.remove('active');
+            loadTableData(); // Refresh table when switching
+        });
+
+        // --- Modals & Panels ---
+        document.querySelectorAll('.close-modal-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('personFormModal').classList.remove('active');
+            });
+        });
+
+        const detailPanel = document.getElementById('personDetailPanel');
+        document.getElementById('closeDetailPanel').addEventListener('click', () => {
+            detailPanel.classList.remove('active');
+        });
+
+        // --- Death Checkbox Logic ---
+        const isDeceasedCheckbox = document.getElementById('isDeceased');
+        const deathDateGroup = document.getElementById('deathDateGroup');
+        const caretakerGroup = document.getElementById('caretakerGroup');
+        
+        if (isDeceasedCheckbox) {
+            isDeceasedCheckbox.addEventListener('change', function() {
+                deathDateGroup.style.display = this.checked ? 'block' : 'none';
+                if(this.checked) {
+                    caretakerGroup.style.border = '1px solid rgba(59, 130, 246, 0.6)';
+                    caretakerGroup.style.background = 'rgba(59, 130, 246, 0.1)';
+                } else {
+                    caretakerGroup.style.border = '1px solid rgba(59, 130, 246, 0.2)';
+                    caretakerGroup.style.background = 'rgba(59, 130, 246, 0.05)';
+                }
+            });
+        }
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof FamilyTreeVisualization === 'function') {
+                window.treeViz = new FamilyTreeVisualization('tree-container', treeId);
+                window.treeViz.loadData();
+            }
+            if (typeof PersonFormManager === 'function') {
+                window.personFormManager = new PersonFormManager(treeId);
+            }
+        });
+
+        // Listen for selection events from tree visualization
+        document.addEventListener('personSelected', (e) => showPersonDetail(e.detail));
+        document.addEventListener('person:select', (e) => showPersonDetail(e.detail));
+
+        document.addEventListener('tree:refresh', () => {
+            if (window.treeViz) window.treeViz.loadData();
+            loadTableData();
+        });
+
+        let currentSelectedPerson = null;
+
+        function showPersonDetail(person) {
+            if (!person) return;
+            currentSelectedPerson = person;
+            detailPanel.classList.add('active');
+            
+            const fullName = `${person.ho || ''} ${person.tenDem || ''} ${person.ten || ''}`.trim() || person.name || person.fullName;
+            document.getElementById('detailName').textContent = fullName;
+            document.getElementById('detailSubtitle').textContent = `Đời thứ ${person.generation || '?'} • Thứ ${person.birthOrder || '?'}`;
+            
+            document.getElementById('detailBirthDate').textContent = person.birthDate ? new Date(person.birthDate).toLocaleDateString('vi-VN') : 'Không rõ';
+            
+            let statusStr = "Đang sống";
+            if (person.isDeceased) {
+                statusStr = person.deathDate ? `Đã mất (${new Date(person.deathDate).toLocaleDateString('vi-VN')})` : 'Đã mất';
+            }
+            document.getElementById('detailDeathDate').textContent = statusStr;
+            
+            let parentsStr = [];
+            if(person.fatherName) parentsStr.push(person.fatherName);
+            if(person.motherName) parentsStr.push(person.motherName);
+            document.getElementById('detailParents').textContent = parentsStr.length > 0 ? parentsStr.join(' / ') : 'Không rõ';
+            
+            document.getElementById('detailBirthplace').textContent = person.birthPlace || 'Không rõ';
+            document.getElementById('detailBio').textContent = person.biography || 'Không có thông tin ghi chú.';
+            
+            // Caretaker
+            const caretakerEl = document.getElementById('caretakerInfoItem');
+            if (person.isDeceased && person.caretakerName) {
+                caretakerEl.style.display = 'block';
+                document.getElementById('detailCaretaker').textContent = person.caretakerName;
+            } else {
+                caretakerEl.style.display = 'none';
+            }
+        }
+
+        // --- Panel Actions ---
+        document.getElementById('btn-edit-person').addEventListener('click', () => {
+            if (currentSelectedPerson && window.personFormManager) window.personFormManager.openEditForm(currentSelectedPerson.id);
+        });
+        document.getElementById('btn-add-child-panel').addEventListener('click', () => {
+            if (currentSelectedPerson && window.personFormManager) window.personFormManager.openAddChildForm(currentSelectedPerson.id);
+        });
+        document.getElementById('btn-add-spouse-panel').addEventListener('click', () => {
+            if (currentSelectedPerson && window.personFormManager) window.personFormManager.openAddSpouseForm(currentSelectedPerson.id);
+        });
+        document.getElementById('btn-delete-person').addEventListener('click', () => {
+            if (currentSelectedPerson && window.treeViz) {
+                window.treeViz.deleteNode(currentSelectedPerson.id);
+                detailPanel.classList.remove('active');
+            }
+        });
+
+        // --- Table View Logic ---
+        let allPersonsData = [];
+        
+        async function loadTableData() {
+            try {
+                const response = await fetch(`/api/trees/${treeId}/persons`);
+                if(!response.ok) throw new Error("Failed to load");
+                allPersonsData = await response.json();
+                
+                // Populate filters if tree visualization is initialized
+                if (window.treeViz && window.treeViz.root) {
+                    populateFilters(window.treeViz.root);
+                }
+                
+                applyFilters();
+            } catch (error) {
+                console.error("Error loading table data:", error);
+            }
+        }
+        
+        function populateFilters(root) {
+            const selectGen = document.getElementById('filterGeneration');
+            const selectBranch = document.getElementById('filterBranch');
+            
+            let maxDepth = 0;
+            root.each(d => { if(d.depth > maxDepth) maxDepth = d.depth; });
+            
+            let genHtml = '<option value="">-- Chọn đời --</option>';
+            for(let i = 0; i <= maxDepth; i++) {
+                genHtml += `<option value="${i}">Đời thứ ${i + 1}</option>`;
+            }
+            selectGen.innerHTML = genHtml;
+            
+            let branchHtml = '<option value="">-- Thuộc nhánh cụ --</option>';
+            root.each(d => {
+                if(d.children && d.children.length > 0) {
+                    const name = d.data.fullName || d.data.name;
+                    branchHtml += `<option value="${d.data.id}">Nhánh cụ ${name} (Đời ${d.depth + 1})</option>`;
+                }
+            });
+            selectBranch.innerHTML = branchHtml;
+        }
+
+        function applyFilters() {
+            const searchVal = document.getElementById('searchInput').value.toLowerCase();
+            const genVal = document.getElementById('filterGeneration').value;
+            const branchVal = document.getElementById('filterBranch').value;
+            
+            let allowedIds = null;
+            let nodeDepths = {};
+            
+            if (window.treeViz && window.treeViz.root) {
+                window.treeViz.root.each(d => {
+                    if(d.data.id) nodeDepths[d.data.id] = d.depth;
+                    if(d.data.spouse && d.data.spouse.id) nodeDepths[d.data.spouse.id] = d.depth;
+                });
+                
+                if (branchVal) {
+                    allowedIds = new Set();
+                    let branchRoot = null;
+                    window.treeViz.root.each(d => {
+                        if(d.data.id == branchVal) branchRoot = d;
+                    });
+                    if (branchRoot) {
+                        branchRoot.each(d => {
+                            if (d.data.id) allowedIds.add(d.data.id);
+                            if (d.data.spouse && d.data.spouse.id) allowedIds.add(d.data.spouse.id);
+                        });
+                    }
+                }
+            }
+            
+            const filtered = allPersonsData.filter(person => {
+                // Filter by name/search
+                if (searchVal && (!person.fullName || !person.fullName.toLowerCase().includes(searchVal))) return false;
+                
+                // Filter by branch
+                if (allowedIds && !allowedIds.has(person.id)) return false;
+                
+                // Filter by generation
+                if (genVal !== "" && nodeDepths[person.id] !== undefined && nodeDepths[person.id].toString() !== genVal) return false;
+                
+                return true;
+            });
+            
+            renderTable(filtered);
+        }
+        
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+        document.getElementById('filterGeneration').addEventListener('change', applyFilters);
+        document.getElementById('filterBranch').addEventListener('change', applyFilters);
+        
+        function renderTable(data) {
+            const tbody = document.getElementById('personsTableBody');
+            tbody.innerHTML = '';
+            
+            data.forEach(p => {
+                const tr = document.createElement('tr');
+                const fullName = `${p.ho || ''} ${p.tenDem || ''} ${p.ten || ''}`.trim() || p.fullName;
+                
+                tr.innerHTML = `
+                    <td>#${p.id}</td>
+                    <td style="font-weight: 500;">${fullName}</td>
+                    <td>${p.gender === 'NAM' ? '👨 Nam' : (p.gender === 'NU' ? '👩 Nữ' : 'Khác')}</td>
+                    <td>${p.generation || '-'}</td>
+                    <td>${p.birthDate ? new Date(p.birthDate).toLocaleDateString('vi-VN') : '-'}</td>
+                    <td>
+                        <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; background: ${p.isDeceased ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}; color: ${p.isDeceased ? '#ef4444' : '#10b981'};">
+                            ${p.isDeceased ? 'Đã mất' : 'Đang sống'}
+                        </span>
+                    </td>
+                    <td><span style="color: var(--primary); font-weight:500;">${p.caretakerName || '-'}</span></td>
+                    <td>
+                        <button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem;" onclick="editPerson(${p.id})">Sửa</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        window.editPerson = function(id) {
+            if(window.personFormManager) window.personFormManager.openEditForm(id);
+        }
+        
+        document.getElementById('btn-refresh-table').addEventListener('click', loadTableData);
+        
+        // --- Add Person Root Fallback ---
+        // Expose openAddRootForm for table view if tree Viz hasn't caught it
+        if(!window.personFormManager) {
+             window.personFormManager = {
+                 openAddRootForm: () => alert("Mô-đun chưa được tải hoàn toàn!")
+             }
+        }
+    </script>
+</body>
+</html>
