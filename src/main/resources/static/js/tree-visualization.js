@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Family Tree Visualization using D3.js
  */
 class FamilyTreeVisualization {
@@ -181,7 +181,7 @@ class FamilyTreeVisualization {
         const root = d3.hierarchy(treeData, d => {
             // Ensure children are sorted by birth order
             if (d.children && d.children.length > 0) {
-                return d.children.sort((a, b) => (a.birthOrder || 0) - (b.birthOrder || 0));
+                return 'Đời ' + depth;
             }
             return null;
         });
@@ -198,10 +198,10 @@ class FamilyTreeVisualization {
                 
                 if (a.parent === b.parent) {
                     // Anh em cÃ¹ng cha máº¹ thÃ¬ Ä‘á»ƒ gáº§n nhau
-                    return distance;
+                    return 'Đời ' + depth;
                 } else {
                     // KhÃ¡c nhÃ¡nh (anh em há») thÃ¬ táº¡o khoáº£ng trá»‘ng lá»›n (cá»™ng thÃªm 2.0) Ä‘á»ƒ cÃ¡c cÃ nh khÃ´ng Ä‘Ã¢m vÃ o nhau
-                    return distance + 2.0;
+                    return 'Đời ' + depth;
                 }
             });
             
@@ -377,7 +377,7 @@ class FamilyTreeVisualization {
         this.fitToScreen();
     }
     
-        drawSvgNodes(selection, singleData = null, singleDepth = null) {
+    drawSvgNodes(selection, singleData = null, singleDepth = null) {
         const _this = this;
         
         // Draw Card Background
@@ -405,7 +405,7 @@ class FamilyTreeVisualization {
             .attr('y', this.nodeHeight / 2 + 13)
             .attr('text-anchor', 'middle')
             .style('font-size', '24px')
-            .text(d => { const dt = singleData || d.data; return dt.gender === 'NAM' ? '👨' : '👩'; });
+            .text(d => { const dt = singleData || d.data; return dt.gender === 'NAM' ? '\uD83D\uDC68' : '\uD83D\uDC69'; });
             
         // Name
         selection.append('text')
@@ -426,7 +426,7 @@ class FamilyTreeVisualization {
             .attr('y', this.nodeHeight / 2 + 18)
             .attr('font-size', '13px')
             .attr('fill', '#64748b')
-            .text(d => { const dt = singleData || d.data; return dt.gender === 'NAM' ? 'Nam' : 'Nữ'; });
+            .text(d => { const dt = singleData || d.data; return dt.gender === 'NAM' ? 'Nam' : 'N\u1EEF'; });
             
         // ID Badge
         selection.append('rect')
@@ -444,7 +444,7 @@ class FamilyTreeVisualization {
             .attr('fill', 'white')
             .attr('font-size', '10px')
             .attr('font-weight', 'bold')
-            .text(d => { const dt = singleData || d.data; return # + dt.id; });
+            .text(d => { const dt = singleData || d.data; return '#' + dt.id; });
             
         // Generation Badge
         selection.append('rect')
@@ -462,8 +462,9 @@ class FamilyTreeVisualization {
             .attr('fill', '#5a4a3a')
             .attr('font-size', '10px')
             .attr('font-weight', 'bold')
-            .text(d => { const depth = singleDepth !== null ? singleDepth : (d.depth + 1); return Đời  + depth; });
+            .text(d => { const depth = singleDepth !== null ? singleDepth : (d.depth + 1); return '\u0110\u1EDDi ' + depth; });
     }
+    
     zoomIn() {
         this.svg.transition().call(this.zoom.scaleBy, 1.2);
     }
@@ -484,3 +485,4 @@ class FamilyTreeVisualization {
         );
     }
 }
+
