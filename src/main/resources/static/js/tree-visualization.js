@@ -631,10 +631,16 @@ class FamilyTreeVisualization {
     }
     
     fitToScreen() {
+        this.width = this.container.clientWidth || 1000;
+        this.height = this.container.clientHeight || 800;
+        this.svg.attr("viewBox", `0 0 ${this.width} ${this.height}`);
         if (!this.width || !this.height) return;
+        const initialScale = this.width < 768 ? 0.45 : 0.8;
         this.svg.transition().duration(750).call(
             this.zoom.transform,
-            d3.zoomIdentity.translate(this.width/2, 100).scale(0.8)
+            d3.zoomIdentity.translate(this.width / 2, 80).scale(initialScale)
         );
     }
 }
+
+

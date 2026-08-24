@@ -333,6 +333,10 @@
             min-width: 0;
         }
 
+        #tree-container {
+            background-color: #F5F0E8;
+        }
+
         /* Responsive Breakpoints */
         @media (max-width: 900px) {
             .desktop-toolbar-items {
@@ -340,18 +344,32 @@
             }
             .mobile-menu-btn {
                 display: inline-flex !important;
+                padding: 6px 10px !important;
             }
             .glass-toolbar {
-                padding: 0 12px;
+                padding: 0 10px !important;
+                height: 54px !important;
                 position: relative;
             }
+            .toolbar-left {
+                gap: 8px !important;
+            }
+            .toolbar-right {
+                gap: 8px !important;
+                margin-left: auto !important;
+            }
             .tree-title {
-                font-size: 1rem;
-                margin: 0 8px;
-                max-width: 140px;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
+                display: none !important; /* Hide title on mobile to save space */
+            }
+            .btn-group .btn {
+                padding: 6px 10px !important;
+                font-size: 12px !important;
+                gap: 4px !important;
+            }
+            .btn-outline {
+                padding: 6px 10px !important;
+                font-size: 12px !important;
+                gap: 4px !important;
             }
         }
     </style>
