@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Family Tree Visualization using D3.js
  */
 class FamilyTreeVisualization {
@@ -23,7 +23,7 @@ class FamilyTreeVisualization {
         // Add Empty State Overlay
         this.emptyState = document.createElement('div');
         this.emptyState.className = 'empty-state-overlay';
-        this.emptyState.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100%; color:#fff;"><div style="text-align:center;"><div style="font-size:40px;margin-bottom:10px;">≡ƒæñ</div><p>Ch╞░a c├│ th├ánh vi├¬n n├áo. Nhß║Ñn "Th├¬m th├ánh vi├¬n" ─æß╗â bß║»t ─æß║ºu.</p><button class="btn btn-primary" onclick="if(window.personFormManager) window.personFormManager.openAddRootForm()">+ Th├¬m th├ánh vi├¬n ─æß║ºu ti├¬n</button></div></div>';
+        this.emptyState.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100%; color:#fff;"><div style="text-align:center;"><div style="font-size:40px;margin-bottom:10px;">👤</div><p>Chưa có thành viên nào. Nhấn "Thêm thành viên" để bắt đầu.</p><button class="btn btn-primary" onclick="if(window.personFormManager) window.personFormManager.openAddRootForm()">+ Thêm thành viên đầu tiên</button></div></div>';
         this.emptyState.style.display = 'none';
         this.emptyState.style.height = '100%';
         this.emptyState.style.width = '100%';
@@ -87,11 +87,11 @@ class FamilyTreeVisualization {
         
         const sortedGens = Array.from(gens).sort((a,b) => a - b);
         const currentGen = filterGeneration.value;
-        filterGeneration.innerHTML = '<option value="">-- Chß╗ìn ─æß╗¥i --</option>';
+        filterGeneration.innerHTML = '<option value="">-- Chọn đời --</option>';
         sortedGens.forEach(gen => {
             const option = document.createElement('option');
             option.value = gen;
-            option.textContent = `─Éß╗¥i thß╗⌐ ${gen}`;
+            option.textContent = `Đời thứ ${gen}`;
             filterGeneration.appendChild(option);
         });
         
@@ -102,7 +102,7 @@ class FamilyTreeVisualization {
         if (!this.filterEventsBound) {
             filterGeneration.addEventListener('change', () => {
                 const gen = filterGeneration.value;
-                filterBranch.innerHTML = '<option value="">-- Chß╗ìn nh├ính --</option>';
+                filterBranch.innerHTML = '<option value="">-- Chọn nhánh --</option>';
                 if (gen) {
                     filterBranch.disabled = false;
                     const peopleInGen = this.rawPersons.filter(p => p.generation == gen).sort((a,b) => (a.birthOrder || 99) - (b.birthOrder || 99));
@@ -167,7 +167,7 @@ class FamilyTreeVisualization {
             
         } catch (error) {
             console.error("Failed to load tree data:", error);
-            showToast("Lß╗ùi khi tß║úi dß╗» liß╗çu gia phß║ú (Failed to load tree)", "error");
+            showToast("Lỗi khi tải dữ liệu gia phả (Failed to load tree)", "error");
         }
     }
     
@@ -197,10 +197,10 @@ class FamilyTreeVisualization {
                 if (b.data.spouses && b.data.spouses.length > 0) distance += b.data.spouses.length * 1.1;
                 
                 if (a.parent === b.parent) {
-                    // Anh em c├╣ng cha mß║╣ th├¼ ─æß╗â gß║ºn nhau
+                    // Anh em cùng cha mẹ thì để gần nhau
                     return distance;
                 } else {
-                    // Kh├íc nh├ính (anh em hß╗ì) th├¼ tß║ío khoß║úng trß╗æng lß╗¢n (cß╗Öng th├¬m 2.0) ─æß╗â c├íc c├ánh kh├┤ng ─æ├óm v├áo nhau
+                    // Khác nhánh (anh em họ) thì tạo khoảng trống lớn (cộng thêm 2.0) để các cành không đâm vào nhau
                     return distance + 2.0;
                 }
             });
@@ -261,7 +261,7 @@ class FamilyTreeVisualization {
             .attr("transform", d => `translate(${d.x - this.nodeWidth/2},${d.y - this.nodeHeight/2})`)
             .on("click", (event, d) => {
                 if(!d.data.id) {
-                    showToast("─É├óy l├á Thß╗ºy Tß╗ò ß║úo (gom nh├│m c├íc nh├ính rß╗¥i rß║íc). Kh├┤ng thß╗â xem chi tiß║┐t.", "info");
+                    showToast("Đây là Thủy Tổ ảo (gom nhóm các nhánh rời rạc). Không thể xem chi tiết.", "info");
                     return;
                 }
                 if(!event.target.closest('.node-btn-add') && !event.target.closest('.node-btn-menu')) {
@@ -310,7 +310,7 @@ class FamilyTreeVisualization {
                 this.onContextMenu(event, d.data);
             });
         btnMenu.append("rect").attr("width", 24).attr("height", 36).attr("rx", 4).attr("x", -12).attr("y", -18).attr("fill", "black");
-        btnMenu.append("text").text("Γï«").attr("text-anchor", "middle").attr("y", 5).attr("fill", "white").attr("font-weight", "bold").attr("font-size", "18px");
+        btnMenu.append("text").text("⋮").attr("text-anchor", "middle").attr("y", 5).attr("fill", "white").attr("font-weight", "bold").attr("font-size", "18px");
 
         // Handle spouses
         const nodesWithSpouse = root.descendants().filter(d => d.data.spouses && d.data.spouses.length > 0);
@@ -332,7 +332,7 @@ class FamilyTreeVisualization {
                     .attr("y", d.y + 5)
                     .attr("fill", "#e83e8c")
                     .style("font-size", "16px")
-                    .text("ΓÖÑ");
+                    .text("♥");
                     
                 // Draw spouse node
                 const spouseGroup = this.g.append("g")
@@ -360,7 +360,7 @@ class FamilyTreeVisualization {
                         this.onContextMenu(event, spouse);
                     });
                 spouseBtnMenu.append("rect").attr("width", 24).attr("height", 36).attr("rx", 4).attr("x", -12).attr("y", -18).attr("fill", "black");
-                spouseBtnMenu.append("text").text("Γï«").attr("text-anchor", "middle").attr("y", 5).attr("fill", "white").attr("font-weight", "bold").attr("font-size", "18px");
+                spouseBtnMenu.append("text").text("⋮").attr("text-anchor", "middle").attr("y", 5).attr("fill", "white").attr("font-weight", "bold").attr("font-size", "18px");
             });
         });
         
@@ -406,19 +406,19 @@ class FamilyTreeVisualization {
                 <!-- ID badge top-left -->
                 <div style="position: absolute; top: 5px; left: ${data.isDeceased ? '32px' : '7px'}; background: ${badgeBg}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; z-index: 2;">#${data.id}</div>
                 <!-- Generation badge top-right (shifted left to make room for menu) -->
-                <div style="position: absolute; top: 5px; right: ${isCaretaker ? '60px' : '36px'}; background: #f0ede6; color: #5a4a3a; padding: 2px 6px; border-radius: 4px; font-size: 10px; z-index: 2; font-weight: 700;">─Éß╗¥i ${generation}</div>
+                <div style="position: absolute; top: 5px; right: ${isCaretaker ? '60px' : '36px'}; background: #f0ede6; color: #5a4a3a; padding: 2px 6px; border-radius: 4px; font-size: 10px; z-index: 2; font-weight: 700;">Đời ${generation}</div>
                 
                 <!-- Avatar -->
                 <div style="width: 56px; height: 56px; border-radius: 50%; background: ${avatarBg}; margin-right: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; z-index: 2; margin-top: 16px; border: 2px solid ${borderColor};">
-                    ${data.avatarUrl ? `<img src="${data.avatarUrl}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="font-size:28px;">${isMale ? '≡ƒæ¿' : '≡ƒæ⌐'}</span>`}
+                    ${data.avatarUrl ? `<img src="${data.avatarUrl}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="font-size:28px;">${isMale ? '👨' : '👩'}</span>`}
                 </div>
                 
                 <!-- Right details -->
                 <div style="flex: 1; padding: 0 10px; display: flex; flex-direction: column; justify-content: center; height: 100%; min-width: 0; box-sizing: border-box;">
-                    <div style="color: #111827; font-weight: 700; font-size: 18px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; text-align: center; font-family: 'Outfit', sans-serif; letter-spacing: -0.2px;">${fullName || '(Ch╞░a c├│ t├¬n)'}</div>
-                    <div style="color: #6b7280; font-size: 14px; text-align: center; margin-top: 3px;">${isMale ? 'Nam' : 'Nß╗»'}${data.birthDate ? ' ΓÇó ' + new Date(data.birthDate).getFullYear() : ''}</div>
-                    ${data.isDeceased ? `<div style="color: #6b7280; font-size: 13px; text-align: center; margin-top: 1px;">Γ£¥ ─É├ú mß║Ñt</div>` : ''}
-                    ${isCaretaker ? `<div style="color: #b8860b; font-size: 13px; text-align: center; font-weight: bold; margin-top: 1px;">Γ¡É C├║ng d╞░ß╗¥ng</div>` : ''}
+                    <div style="color: #111827; font-weight: 700; font-size: 18px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; text-align: center; font-family: 'Outfit', sans-serif; letter-spacing: -0.2px;">${fullName || '(Chưa có tên)'}</div>
+                    <div style="color: #6b7280; font-size: 14px; text-align: center; margin-top: 3px;">${isMale ? 'Nam' : 'Nữ'}${data.birthDate ? ' • ' + new Date(data.birthDate).getFullYear() : ''}</div>
+                    ${data.isDeceased ? `<div style="color: #6b7280; font-size: 13px; text-align: center; margin-top: 1px;">✝ Đã mất</div>` : ''}
+                    ${isCaretaker ? `<div style="color: #b8860b; font-size: 13px; text-align: center; font-weight: bold; margin-top: 1px;">⭐ Cúng dường</div>` : ''}
                 </div>
             </div>
         `;
@@ -458,7 +458,7 @@ class FamilyTreeVisualization {
                 .style("font-family", "'Outfit', sans-serif")
                 .style("font-size", "14px")
                 .style("font-weight", "bold")
-                .text(`─Éß╗¥i ${depth + 1}`);
+                .text(`Đời ${depth + 1}`);
         });
     }
     
@@ -485,20 +485,20 @@ class FamilyTreeVisualization {
         menu.style.zIndex = '1000';
         
         menu.innerHTML = `
-            <div class="context-menu-item" id="ctx-add-child"><i class="fas fa-baby"></i> Th├¬m Con</div>
-            <div class="context-menu-item" id="ctx-add-spouse"><i class="fas fa-heart"></i> Th├¬m Vß╗ú/Chß╗ông</div>
+            <div class="context-menu-item" id="ctx-add-child"><i class="fas fa-baby"></i> Thêm Con</div>
+            <div class="context-menu-item" id="ctx-add-spouse"><i class="fas fa-heart"></i> Thêm Vợ/Chồng</div>
             <div class="context-menu-divider"></div>
-            <div class="context-menu-item" id="ctx-edit"><i class="fas fa-pencil-alt"></i> Sß╗¡a th├┤ng tin</div>
-            <div class="context-menu-item danger" id="ctx-delete"><i class="fas fa-trash"></i> X├│a th├ánh vi├¬n</div>
-            <div class="context-menu-item danger" id="ctx-delete-branch"><i class="fas fa-trash-alt"></i> X├│a nh├ính n├áy</div>
+            <div class="context-menu-item" id="ctx-edit"><i class="fas fa-pencil-alt"></i> Sửa thông tin</div>
+            <div class="context-menu-item danger" id="ctx-delete"><i class="fas fa-trash"></i> Xóa thành viên</div>
+            <div class="context-menu-item danger" id="ctx-delete-branch"><i class="fas fa-trash-alt"></i> Xóa nhánh này</div>
             <div class="context-menu-divider"></div>
-            <div class="context-menu-item" id="ctx-copy-branch"><i class="fas fa-copy"></i> Sao ch├⌐p nh├ính</div>
-            <div class="context-menu-item" id="ctx-paste-branch"><i class="fas fa-paste"></i> D├ín nh├ính</div>
+            <div class="context-menu-item" id="ctx-copy-branch"><i class="fas fa-copy"></i> Sao chép nhánh</div>
+            <div class="context-menu-item" id="ctx-paste-branch"><i class="fas fa-paste"></i> Dán nhánh</div>
             <div class="context-menu-divider"></div>
-            <div class="context-menu-item" id="ctx-view-branch"><i class="fas fa-code-branch"></i> Xem ri├¬ng nh├ính n├áy</div>
-            <div class="context-menu-item" id="ctx-view-up"><i class="fas fa-level-up-alt"></i> Xem nh├ính ng╞░ß╗úc l├¬n</div>
+            <div class="context-menu-item" id="ctx-view-branch"><i class="fas fa-code-branch"></i> Xem riêng nhánh này</div>
+            <div class="context-menu-item" id="ctx-view-up"><i class="fas fa-level-up-alt"></i> Xem nhánh ngược lên</div>
             <div class="context-menu-divider"></div>
-            <div class="context-menu-item" id="ctx-close"><i class="fas fa-times"></i> ─É├│ng</div>
+            <div class="context-menu-item" id="ctx-close"><i class="fas fa-times"></i> Đóng</div>
         `;
         document.body.appendChild(menu);
         this.contextMenu = menu;
@@ -531,7 +531,7 @@ class FamilyTreeVisualization {
         document.getElementById('ctx-copy-branch').addEventListener('click', () => {
             if (this.selectedNodeId) {
                 window.copiedBranchSourceId = this.selectedNodeId;
-                showToast("─É├ú sao ch├⌐p nh├ính. Vui l├▓ng chß╗ìn ng╞░ß╗¥i kh├íc v├á D├ín nh├ính.", "info");
+                showToast("Đã sao chép nhánh. Vui lòng chọn người khác và Dán nhánh.", "info");
             }
         });
         
@@ -539,7 +539,7 @@ class FamilyTreeVisualization {
             if (this.selectedNodeId && window.copiedBranchSourceId) {
                 this.pasteBranch(window.copiedBranchSourceId, this.selectedNodeId);
             } else {
-                showToast("Bß║ín ch╞░a sao ch├⌐p nh├ính n├áo!", "warning");
+                showToast("Bạn chưa sao chép nhánh nào!", "warning");
             }
         });
         document.getElementById('ctx-view-branch').addEventListener('click', () => {
@@ -567,42 +567,42 @@ class FamilyTreeVisualization {
     }
     
     async deleteNode(id) {
-        if(confirm("Bß║ín c├│ chß║»c chß║»n muß╗æn x├│a ng╞░ß╗¥i n├áy?")) {
+        if(confirm("Bạn có chắc chắn muốn xóa người này?")) {
             try {
                 await apiDelete(`/api/persons/${id}`);
-                showToast("─É├ú x├│a th├ánh c├┤ng", "success");
+                showToast("Đã xóa thành công", "success");
                 this.loadData();
             } catch (err) {
-                showToast("Lß╗ùi khi x├│a", "error");
+                showToast("Lỗi khi xóa", "error");
             }
         }
     }
     
     async deleteBranch(id) {
-        if(confirm("Cß║óNH B├üO: Bß║ín c├│ chß║»c chß║»n muß╗æn x├│a ng╞░ß╗¥i n├áy v├á to├án bß╗Ö con ch├íu cß╗ºa hß╗ì kh├┤ng? H├ánh ─æß╗Öng n├áy kh├┤ng thß╗â ho├án t├íc!")) {
+        if(confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa người này và toàn bộ con cháu của họ không? Hành động này không thể hoàn tác!")) {
             try {
                 await apiDelete(`/api/persons/${id}/branch`);
-                showToast("─É├ú x├│a nh├ính th├ánh c├┤ng", "success");
+                showToast("Đã xóa nhánh thành công", "success");
                 this.loadData();
             } catch (err) {
-                showToast("Lß╗ùi khi x├│a nh├ính", "error");
+                showToast("Lỗi khi xóa nhánh", "error");
             }
         }
     }
     
     async pasteBranch(sourceId, targetId) {
         if(sourceId === targetId) {
-            showToast("Kh├┤ng thß╗â d├ín nh├ính v├áo ch├¡nh n├│!", "error");
+            showToast("Không thể dán nhánh vào chính nó!", "error");
             return;
         }
-        if(confirm("Bß║ín c├│ muß╗æn d├ín nh├ính ─æ├ú ch├⌐p l├ám con cß╗ºa ng╞░ß╗¥i n├áy kh├┤ng?")) {
+        if(confirm("Bạn có muốn dán nhánh đã chép làm con của người này không?")) {
             try {
                 await apiPost(`/api/persons/${targetId}/paste-branch?sourceId=${sourceId}`);
-                showToast("─É├ú sao ch├⌐p nh├ính th├ánh c├┤ng", "success");
+                showToast("Đã sao chép nhánh thành công", "success");
                 this.loadData();
                 window.copiedBranchSourceId = null;
             } catch (err) {
-                showToast("Lß╗ùi khi d├ín nh├ính", "error");
+                showToast("Lỗi khi dán nhánh", "error");
             }
         }
     }
