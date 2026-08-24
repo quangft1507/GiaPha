@@ -261,6 +261,99 @@
 
         /* Toast Container for App.js */
         .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
+
+        /* Desktop vs Mobile Toolbar Styles */
+        .desktop-toolbar-items {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mobile-menu-btn {
+            display: none !important;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-glass);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .mobile-menu-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .mobile-menu-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 16px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 16px;
+            z-index: 1000;
+            min-width: 280px;
+            max-width: 90vw;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+        .mobile-menu-dropdown.show {
+            display: block;
+        }
+        .mobile-menu-section {
+            margin-bottom: 14px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .mobile-menu-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .mobile-menu-section label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .mobile-menu-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .mobile-menu-row .btn {
+            flex: 1;
+            font-size: 12px;
+            padding: 8px 6px;
+            min-width: 0;
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 900px) {
+            .desktop-toolbar-items {
+                display: none !important;
+            }
+            .mobile-menu-btn {
+                display: inline-flex !important;
+            }
+            .glass-toolbar {
+                padding: 0 12px;
+                position: relative;
+            }
+            .tree-title {
+                font-size: 1rem;
+                margin: 0 8px;
+                max-width: 140px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+        }
     </style>
 </head>
 <body>
