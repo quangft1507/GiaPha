@@ -1166,79 +1166,98 @@ body[data-theme="dark"] {
     margin: 0;
 }
 
-/* Responsive adjustments for mobile */
-@media (max-width: 768px) {
-  .app-header {
-    height: auto;
-    min-height: 44px;
-    flex-wrap: wrap;
-    padding: 6px 8px;
-    gap: 4px;
-  }
-  .app-header .toolbar-left {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-shrink: 1;
-    min-width: 0;
-  }
-  .app-header .toolbar-left .btn {
-    padding: 4px 8px !important;
-    font-size: 11px !important;
-  }
-  .tree-title {
-    font-size: 0.85rem !important;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100px;
-  }
-  .app-header .toolbar-right {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    align-items: center;
-  }
-  .btn-group .btn, .app-header .btn, .app-header .btn-outline, .app-header .btn-primary {
-    font-size: 11px !important;
-    padding: 3px 6px !important;
-    height: 28px !important;
-  }
-  .app-header select {
-    font-size: 11px !important;
-    height: 28px !important;
-    width: auto !important;
-    min-width: 80px;
-    max-width: 120px;
-    padding: 2px 4px !important;
-  }
-  /* Hide zoom buttons on mobile - users can pinch to zoom */
-  .app-header .toolbar-right .btn-group:nth-child(2) {
+/* Mobile menu button - hidden on desktop */
+.mobile-menu-btn {
     display: none;
-  }
-  #btn-zoom-in, #btn-zoom-out, #btn-zoom-reset {
-    display: none !important;
-  }
-  .tree-container, .table-container {
-    height: calc(100vh - 90px);
-  }
-  /* Hide button text on mobile, show only icons */
-  .app-header .btn-outline svg,
-  .app-header .btn-primary svg {
-    margin-right: 0 !important;
-  }
 }
 
-@media (max-width: 480px) {
-  .tree-title {
-    max-width: 70px;
-    font-size: 0.75rem !important;
-  }
-  #filter-generation, #filter-branch {
-    min-width: 70px !important;
-    max-width: 90px !important;
-    font-size: 10px !important;
-  }
+/* Mobile dropdown menu - hidden by default */
+.mobile-menu-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 8px;
+    background: var(--bg-panel, #1e293b);
+    border: 1px solid var(--border-glass, rgba(255,255,255,0.1));
+    border-radius: 12px;
+    padding: 12px;
+    z-index: 200;
+    min-width: 280px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
 }
+.mobile-menu-dropdown.show {
+    display: block;
+}
+.mobile-menu-section {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.mobile-menu-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+.mobile-menu-section label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted, #94a3b8);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+.mobile-menu-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.mobile-menu-row .btn {
+    flex: 1;
+    font-size: 11px !important;
+    padding: 6px 4px !important;
+    min-width: 0;
+}
+
+/* Desktop toolbar items wrapper */
+.desktop-toolbar-items {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+/* Responsive: show mobile menu, hide desktop toolbar */
+@media (max-width: 768px) {
+    .app-header {
+        height: auto;
+        min-height: 44px;
+        padding: 6px 8px;
+        position: relative;
+    }
+    .desktop-toolbar-items {
+        display: none !important;
+    }
+    .mobile-menu-btn {
+        display: inline-flex !important;
+        padding: 6px 8px !important;
+        background: rgba(255,255,255,0.1);
+        border-radius: 8px;
+    }
+    .tree-title {
+        font-size: 0.9rem !important;
+        max-width: 120px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .tree-container, .table-container {
+        height: calc(100vh - 55px);
+    }
+    .btn-group .btn {
+        font-size: 12px !important;
+        padding: 4px 10px !important;
+    }
+}
+
 
 
