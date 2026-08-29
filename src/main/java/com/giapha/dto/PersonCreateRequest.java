@@ -22,5 +22,8 @@ public class PersonCreateRequest {
     private String occupation;
     private Integer birthOrder;
     private Long caretakerId;
+    private Long parentId;
     private Long otherParentId;
+    private Long spouseId;
+    private Long treeId;
 }

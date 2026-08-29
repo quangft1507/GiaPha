@@ -55,15 +55,15 @@ public class PersonService {
         person.setTenDem(request.getTenDem());
         person.setTen(request.getTen());
         person.setAliasName(request.getAliasName());
-        person.setGender(request.getGender());
+        person.setGender(request.getGender() != null ? request.getGender() : com.giapha.enums.Gender.NAM);
         person.setBirthDate(request.getBirthDate());
         person.setDeathDate(request.getDeathDate());
-        person.setIsDeceased(request.getIsDeceased());
+        person.setIsDeceased(Boolean.TRUE.equals(request.getIsDeceased()));
         person.setBirthPlace(request.getBirthPlace());
         person.setBiography(request.getBiography());
         person.setPhone(request.getPhone());
         person.setOccupation(request.getOccupation());
-        person.setBirthOrder(request.getBirthOrder());
+        person.setBirthOrder(request.getBirthOrder() != null ? request.getBirthOrder() : 1);
         
         person = personRepository.save(person);
         
@@ -78,34 +78,53 @@ public class PersonService {
             }
         }
         
-        // Update other parent relationship if requested
+        // Update parent relationships if requested
         List<Relationship> parentRels = relationshipRepository.findByRelatedPersonId(personId).stream()
                 .filter(r -> r.getType() == RelationshipType.PARENT_CHILD)
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
         
-        if (parentRels.size() > 0) {
-            Relationship secondaryParentRel = parentRels.size() > 1 ? parentRels.get(1) : null;
-            
-            if (request.getOtherParentId() != null) {
-                Person newOtherParent = personRepository.findById(request.getOtherParentId()).orElse(null);
-                if (newOtherParent != null) {
-                    if (secondaryParentRel != null) {
-                        secondaryParentRel.setPerson(newOtherParent);
-                        relationshipRepository.save(secondaryParentRel);
-                    } else {
-                        Relationship rel2 = new Relationship();
-                        rel2.setPerson(newOtherParent);
-                        rel2.setRelatedPerson(person);
-                        rel2.setType(RelationshipType.PARENT_CHILD);
-                        rel2.setChildOrder(person.getBirthOrder());
-                        relationshipRepository.save(rel2);
+        if (request.getParentId() != null) {
+            Person newParent = personRepository.findById(request.getParentId()).orElse(null);
+            if (newParent != null) {
+                if (!parentRels.isEmpty()) {
+                    Relationship primaryRel = parentRels.get(0);
+                    if (!primaryRel.getPerson().getId().equals(newParent.getId())) {
+                        primaryRel.setPerson(newParent);
+                        relationshipRepository.save(primaryRel);
                     }
+                } else {
+                    Relationship rel = new Relationship();
+                    rel.setPerson(newParent);
+                    rel.setRelatedPerson(person);
+                    rel.setType(RelationshipType.PARENT_CHILD);
+                    rel.setChildOrder(person.getBirthOrder() != null ? person.getBirthOrder() : 1);
+                    relationshipRepository.save(rel);
                 }
-            } else {
-                if (secondaryParentRel != null) {
-                    relationshipRepository.delete(secondaryParentRel);
+                if (newParent.getGeneration() != null) {
+                    person.setGeneration(newParent.getGeneration() + 1);
+                    personRepository.save(person);
                 }
             }
+        }
+        
+        if (request.getOtherParentId() != null) {
+            Person newOtherParent = personRepository.findById(request.getOtherParentId()).orElse(null);
+            if (newOtherParent != null) {
+                Relationship secondaryParentRel = parentRels.size() > 1 ? parentRels.get(1) : null;
+                if (secondaryParentRel != null) {
+                    secondaryParentRel.setPerson(newOtherParent);
+                    relationshipRepository.save(secondaryParentRel);
+                } else {
+                    Relationship rel2 = new Relationship();
+                    rel2.setPerson(newOtherParent);
+                    rel2.setRelatedPerson(person);
+                    rel2.setType(RelationshipType.PARENT_CHILD);
+                    rel2.setChildOrder(person.getBirthOrder());
+                    relationshipRepository.save(rel2);
+                }
+            }
+        } else if (parentRels.size() > 1) {
+            relationshipRepository.delete(parentRels.get(1));
         }
         
         return toDTO(person);
@@ -359,7 +378,7 @@ public class PersonService {
         // Fetch Father, Mother
         List<Relationship> parentRels = relationshipRepository.findByRelatedPersonId(person.getId());
         for (Relationship rel : parentRels) {
-            if (rel.getType() == RelationshipType.PARENT_CHILD) {
+            if (rel.getType() == RelationshipType.PARENT_CHILD && rel.getPerson() != null) {
                 Person parent = rel.getPerson();
                 if (dto.getParentId() == null) {
                     dto.setParentId(parent.getId());
@@ -377,8 +396,8 @@ public class PersonService {
         
         // Fetch Caretaker
         List<FuneralCare> cares = funeralCareRepository.findByDeceasedPersonId(person.getId());
-        cares.stream().filter(c -> c.getCareType() == CareType.CUNG_DUONG).findFirst().ifPresent(c -> {
-                dto.setCaretakerId(c.getCaretakerPerson().getId());
+        cares.stream().filter(c -> c.getCareType() == CareType.CUNG_DUONG && c.getCaretakerPerson() != null).findFirst().ifPresent(c -> {
+            dto.setCaretakerId(c.getCaretakerPerson().getId());
             dto.setCaretakerName(c.getCaretakerPerson().getFullName());
         });
         
@@ -391,15 +410,15 @@ public class PersonService {
         p.setTenDem(request.getTenDem());
         p.setTen(request.getTen());
         p.setAliasName(request.getAliasName());
-        p.setGender(request.getGender());
+        p.setGender(request.getGender() != null ? request.getGender() : com.giapha.enums.Gender.NAM);
         p.setBirthDate(request.getBirthDate());
         p.setDeathDate(request.getDeathDate());
-        p.setIsDeceased(request.getIsDeceased());
+        p.setIsDeceased(Boolean.TRUE.equals(request.getIsDeceased()));
         p.setBirthPlace(request.getBirthPlace());
         p.setBiography(request.getBiography());
         p.setPhone(request.getPhone());
         p.setOccupation(request.getOccupation());
-        p.setBirthOrder(request.getBirthOrder());
+        p.setBirthOrder(request.getBirthOrder() != null ? request.getBirthOrder() : 1);
         return p;
     }
 }
