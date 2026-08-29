@@ -121,6 +121,7 @@ class FamilyTreeVisualization {
             
             filterBranch.addEventListener('change', () => {
                 const personId = filterBranch.value;
+                this.shouldFitToScreen = true;
                 if (personId) {
                     this.viewBranchId = personId;
                     this.loadData();
@@ -375,8 +376,12 @@ class FamilyTreeVisualization {
         // Render Generation Labels
         this.renderGenerationLabels(root);
         
-        // Initial centering
-        this.fitToScreen();
+        // Initial centering (only if explicitly requested or first render)
+        if (!this.initialRenderDone || this.shouldFitToScreen) {
+            this.fitToScreen();
+            this.initialRenderDone = true;
+            this.shouldFitToScreen = false;
+        }
     }
     
     renderNodeCard(container, data, generation) {
@@ -673,6 +678,7 @@ class FamilyTreeVisualization {
         document.getElementById('ctx-view-branch').addEventListener('click', () => {
             if (this.selectedNodeId) {
                 this.viewBranchId = this.selectedNodeId;
+                this.shouldFitToScreen = true;
                 this.loadData();
             }
         });
@@ -680,6 +686,7 @@ class FamilyTreeVisualization {
         document.getElementById('ctx-view-up').addEventListener('click', () => {
             // Reset to full tree
             this.viewBranchId = null;
+            this.shouldFitToScreen = true;
             this.loadData();
         });
     }
