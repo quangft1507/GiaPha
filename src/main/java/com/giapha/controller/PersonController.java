@@ -76,6 +76,11 @@ public class PersonController {
         return ResponseEntity.ok(personService.addChild(parentId, request));
     }
 
+    @PostMapping("/persons/{childId}/parent")
+    public ResponseEntity<PersonDTO> addParent(@PathVariable Long childId, @Valid @RequestBody PersonCreateRequest request) {
+        return ResponseEntity.ok(personService.addParent(childId, request));
+    }
+
     @PostMapping("/persons/{personId}/spouse")
     public ResponseEntity<PersonDTO> addSpouse(@PathVariable Long personId, @Valid @RequestBody PersonCreateRequest request) {
         return ResponseEntity.ok(personService.addSpouse(personId, request));

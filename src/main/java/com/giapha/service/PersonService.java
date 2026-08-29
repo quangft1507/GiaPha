@@ -186,6 +186,64 @@ public class PersonService {
         return toDTO(child);
     }
 
+    public PersonDTO addParent(Long childId, PersonCreateRequest request) {
+        Person child = personRepository.findById(childId)
+                .orElseThrow(() -> new RuntimeException("Child not found"));
+        Person parent = fromRequest(request);
+        parent.setFamilyTree(child.getFamilyTree());
+
+        Integer childGen = child.getGeneration();
+        if (childGen == null || childGen <= 1) {
+            // Shift all persons in the tree down by 1 generation
+            List<Person> allInTree = personRepository.findByFamilyTreeId(child.getFamilyTree().getId());
+            for (Person p : allInTree) {
+                p.setGeneration((p.getGeneration() != null ? p.getGeneration() : 1) + 1);
+            }
+            personRepository.saveAll(allInTree);
+            parent.setGeneration(1);
+        } else {
+            parent.setGeneration(childGen - 1);
+        }
+
+        parent = personRepository.save(parent);
+
+        // Relationship parent -> child
+        Relationship rel = new Relationship();
+        rel.setPerson(parent);
+        rel.setRelatedPerson(child);
+        rel.setType(RelationshipType.PARENT_CHILD);
+        rel.setChildOrder(child.getBirthOrder() != null ? child.getBirthOrder() : 1);
+        relationshipRepository.save(rel);
+
+        // Check if child has other existing parents, link as spouse
+        List<Person> existingParents = relationshipRepository.findParentsOfPerson(childId);
+        for (Person existingParent : existingParents) {
+            if (!existingParent.getId().equals(parent.getId())) {
+                existingParent.setGeneration(parent.getGeneration());
+                personRepository.save(existingParent);
+
+                List<Relationship> spouseRels = relationshipRepository.findSpouseRelationships(parent.getId());
+                boolean alreadySpouse = spouseRels.stream().anyMatch(r ->
+                    (r.getPerson().getId().equals(existingParent.getId()) && r.getRelatedPerson().getId().equals(parent.getId())) ||
+                    (r.getPerson().getId().equals(parent.getId()) && r.getRelatedPerson().getId().equals(existingParent.getId()))
+                );
+                if (!alreadySpouse) {
+                    Relationship spouseRel = new Relationship();
+                    spouseRel.setPerson(parent);
+                    spouseRel.setRelatedPerson(existingParent);
+                    spouseRel.setType(RelationshipType.SPOUSE);
+                    relationshipRepository.save(spouseRel);
+                }
+            }
+        }
+
+        if (request.getCaretakerId() != null) {
+            updateCaretaker(parent, request.getCaretakerId());
+        }
+
+        return toDTO(parent);
+    }
+
     public PersonDTO addSpouse(Long personId, PersonCreateRequest request) {
         Person person = personRepository.findById(personId)
                 .orElseThrow(() -> new RuntimeException("Person not found"));

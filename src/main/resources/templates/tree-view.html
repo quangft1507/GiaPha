@@ -642,8 +642,9 @@
             </div>
             <div class="panel-footer">
                 <button class="btn btn-primary btn-full" id="btn-edit-person">Chỉnh sửa thông tin</button>
+                <button class="btn btn-outline" id="btn-add-parent-panel">Thêm Bố/Mẹ</button>
                 <button class="btn btn-outline" id="btn-add-spouse-panel">Thêm Vợ/Chồng</button>
-                <button class="btn btn-outline" id="btn-add-child-panel">Thêm Con</button>
+                <button class="btn btn-outline btn-full" id="btn-add-child-panel">Thêm Con</button>
                 <button class="btn btn-danger btn-full" id="btn-delete-person" style="margin-top: 8px;">Xóa thành viên này</button>
             </div>
         </aside>
@@ -660,6 +661,7 @@
             <div class="modal-body">
                 <form id="personForm">
                     <input type="hidden" id="personId" name="id">
+                    <input type="hidden" id="personChildId" name="childId">
                     <div class="form-group full" id="parentGroup">
                         <label>Là con của (Chọn Bố)</label>
                         <select id="personParentId" name="parentId" class="form-control">
@@ -789,6 +791,10 @@
         <div class="context-menu-item" id="menu-edit">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Sửa thông tin
+        </div>
+        <div class="context-menu-item" id="menu-add-parent">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+            Thêm Bố/Mẹ
         </div>
         <div class="context-menu-item" id="menu-add-child">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -987,12 +993,21 @@
         document.getElementById('btn-edit-person').addEventListener('click', () => {
             if (currentSelectedPerson && window.personFormManager) window.personFormManager.openEditForm(currentSelectedPerson.id);
         });
+        document.getElementById('btn-add-parent-panel').addEventListener('click', () => {
+            if (currentSelectedPerson && window.personFormManager) window.personFormManager.openAddParentForm(currentSelectedPerson.id);
+        });
         document.getElementById('btn-add-child-panel').addEventListener('click', () => {
             if (currentSelectedPerson && window.personFormManager) window.personFormManager.openAddChildForm(currentSelectedPerson.id);
         });
         document.getElementById('btn-add-spouse-panel').addEventListener('click', () => {
             if (currentSelectedPerson && window.personFormManager) window.personFormManager.openAddSpouseForm(currentSelectedPerson.id);
         });
+        const menuAddParentEl = document.getElementById('menu-add-parent');
+        if (menuAddParentEl) {
+            menuAddParentEl.addEventListener('click', () => {
+                if (currentSelectedPerson && window.personFormManager) window.personFormManager.openAddParentForm(currentSelectedPerson.id);
+            });
+        }
         document.getElementById('btn-delete-person').addEventListener('click', () => {
             if (currentSelectedPerson && window.treeViz) {
                 window.treeViz.deleteNode(currentSelectedPerson.id);

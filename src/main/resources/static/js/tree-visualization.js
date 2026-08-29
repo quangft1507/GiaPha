@@ -608,6 +608,7 @@ class FamilyTreeVisualization {
         menu.style.zIndex = '1000';
         
         menu.innerHTML = `
+            <div class="context-menu-item" id="ctx-add-parent"><i class="fas fa-user-plus"></i> Thêm Bố/Mẹ (Thân sinh)</div>
             <div class="context-menu-item" id="ctx-add-child"><i class="fas fa-baby"></i> Thêm Con</div>
             <div class="context-menu-item" id="ctx-add-spouse"><i class="fas fa-heart"></i> Thêm Vợ/Chồng</div>
             <div class="context-menu-divider"></div>
@@ -631,6 +632,10 @@ class FamilyTreeVisualization {
             this.contextMenu.classList.remove('show');
         });
         
+        document.getElementById('ctx-add-parent').addEventListener('click', () => {
+            if (this.selectedNodeId) window.personFormManager.openAddParentForm(this.selectedNodeId);
+        });
+
         document.getElementById('ctx-add-child').addEventListener('click', () => {
             if (this.selectedNodeId) window.personFormManager.openAddChildForm(this.selectedNodeId);
         });

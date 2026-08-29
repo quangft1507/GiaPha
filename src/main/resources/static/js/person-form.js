@@ -117,6 +117,21 @@ class PersonFormManager {
         $('#personFormTitle').textContent = 'Thêm vợ/chồng (Add Spouse)';
         openModal(this.modalId);
     }
+
+    openAddParentForm(childId) {
+        this.resetForm();
+        if ($('#personChildId')) $('#personChildId').value = childId;
+        if ($('#parentGroup')) $('#parentGroup').style.display = 'none'; // Hide parent selector for adding parent
+        if ($('#otherParentGroup')) $('#otherParentGroup').style.display = 'none';
+        
+        let childName = '';
+        if (this.allPersonsCache) {
+            const child = this.allPersonsCache.find(p => p.id == childId);
+            if (child) childName = ` cho ${child.fullName || child.name || ''}`;
+        }
+        $('#personFormTitle').textContent = `Thêm Thân sinh (Cha/Mẹ)${childName}`;
+        openModal(this.modalId);
+    }
     
     openAddRootForm(treeId) {
         this.resetForm();
@@ -316,12 +331,16 @@ class PersonFormManager {
         const personId = $('#personId').value;
         const parentId = $('#personParentId').value;
         const spouseId = $('#personSpouseId').value;
+        const childId = $('#personChildId') ? $('#personChildId').value : '';
         
         try {
             let savedPerson = null;
             if (personId) {
                 // EDIT
                 savedPerson = await apiPut(`/api/persons/${personId}`, data);
+            } else if (childId) {
+                // ADD PARENT (Thêm thân sinh)
+                savedPerson = await apiPost(`/api/persons/${childId}/parent`, data);
             } else if (parentId) {
                 // ADD CHILD
                 data.parentId = parentId;
@@ -359,6 +378,7 @@ class PersonFormManager {
         $('#personId').value = '';
         $('#personParentId').value = '';
         $('#personSpouseId').value = '';
+        if ($('#personChildId')) $('#personChildId').value = '';
         
         const deathDateGroup = $('#deathDateGroup');
         if(deathDateGroup) deathDateGroup.style.display = 'none';
