@@ -121,8 +121,27 @@ class PersonFormManager {
     openAddParentForm(childId) {
         this.resetForm();
         if ($('#personChildId')) $('#personChildId').value = childId;
-        if ($('#parentGroup')) $('#parentGroup').style.display = 'none'; // Hide parent selector for adding parent
+        
+        // Show the parent selector so user can select the Grandpa (if any)
+        if ($('#parentGroup')) $('#parentGroup').style.display = 'block';
         if ($('#otherParentGroup')) $('#otherParentGroup').style.display = 'none';
+        
+        this.populateParentDropdown();
+        
+        // Try to auto-select current parent if it exists
+        let currentParentId = null;
+        if (window.treeViz && window.treeViz.root) {
+            window.treeViz.root.each(d => {
+                if (d.data.id == childId && d.parent && !d.data.spouse) {
+                    currentParentId = d.parent.data.id;
+                }
+            });
+        }
+        if (currentParentId && $('#personParentId')) {
+            $('#personParentId').value = currentParentId;
+            // trigger change to load otherParent if any
+            this.onParentChange();
+        }
         
         let childName = '';
         if (this.allPersonsCache) {
@@ -340,6 +359,9 @@ class PersonFormManager {
                 savedPerson = await apiPut(`/api/persons/${personId}`, data);
             } else if (childId) {
                 // ADD PARENT (Thêm thân sinh)
+                if (parentId) {
+                    data.parentId = parentId; // Pass the selected Grandpa ID
+                }
                 savedPerson = await apiPost(`/api/persons/${childId}/parent`, data);
             } else if (parentId) {
                 // ADD CHILD

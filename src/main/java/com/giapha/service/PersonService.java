@@ -39,12 +39,12 @@ public class PersonService {
             person.setGeneration(1);
         }
         person = personRepository.save(person);
-        
+
         // Handle caretaker (người cúng dường)
         if (request.getCaretakerId() != null) {
             updateCaretaker(person, request.getCaretakerId());
         }
-        
+
         return toDTO(person);
     }
 
@@ -64,9 +64,9 @@ public class PersonService {
         person.setPhone(request.getPhone());
         person.setOccupation(request.getOccupation());
         person.setBirthOrder(request.getBirthOrder() != null ? request.getBirthOrder() : 1);
-        
+
         person = personRepository.save(person);
-        
+
         if (request.getCaretakerId() != null) {
             updateCaretaker(person, request.getCaretakerId());
         } else {
@@ -77,12 +77,12 @@ public class PersonService {
                 funeralCareRepository.deleteAll(cares);
             }
         }
-        
+
         // Update parent relationships if requested
         List<Relationship> parentRels = relationshipRepository.findByRelatedPersonId(personId).stream()
                 .filter(r -> r.getType() == RelationshipType.PARENT_CHILD)
                 .collect(Collectors.toList());
-        
+
         if (request.getParentId() != null) {
             Person newParent = personRepository.findById(request.getParentId()).orElse(null);
             if (newParent != null) {
@@ -106,7 +106,7 @@ public class PersonService {
                 }
             }
         }
-        
+
         if (request.getOtherParentId() != null) {
             Person newOtherParent = personRepository.findById(request.getOtherParentId()).orElse(null);
             if (newOtherParent != null) {
@@ -126,19 +126,19 @@ public class PersonService {
         } else if (parentRels.size() > 1) {
             relationshipRepository.delete(parentRels.get(1));
         }
-        
+
         return toDTO(person);
     }
-    
+
     private void updateCaretaker(Person person, Long caretakerId) {
         Person caretaker = personRepository.findById(caretakerId).orElse(null);
         if (caretaker != null) {
             List<FuneralCare> existingCares = funeralCareRepository.findByDeceasedPersonId(person.getId());
             FuneralCare care = existingCares.stream()
-                .filter(c -> c.getCareType() == CareType.CUNG_DUONG)
-                .findFirst()
-                .orElse(new FuneralCare());
-                
+                    .filter(c -> c.getCareType() == CareType.CUNG_DUONG)
+                    .findFirst()
+                    .orElse(new FuneralCare());
+
             care.setDeceasedPerson(person);
             care.setCaretakerPerson(caretaker);
             care.setCareType(CareType.CUNG_DUONG);
@@ -150,7 +150,7 @@ public class PersonService {
     public void deletePerson(Long personId) {
         Person person = personRepository.findById(personId)
                 .orElseThrow(() -> new RuntimeException("Person not found"));
-        
+
         List<Relationship> rels = relationshipRepository.findByPersonId(personId);
         rels.addAll(relationshipRepository.findByRelatedPersonId(personId));
         relationshipRepository.deleteAll(rels);
@@ -178,19 +178,19 @@ public class PersonService {
         Person child = fromRequest(request);
         child.setFamilyTree(parent.getFamilyTree());
         child.setGeneration((parent.getGeneration() != null ? parent.getGeneration() : 1) + 1);
-        
+
         List<Person> existingChildren = relationshipRepository.findChildrenOfPerson(parentId);
         child.setBirthOrder(existingChildren.size() + 1);
-        
+
         personRepository.save(child);
-        
+
         Relationship rel = new Relationship();
         rel.setPerson(parent);
         rel.setRelatedPerson(child);
         rel.setType(RelationshipType.PARENT_CHILD);
         rel.setChildOrder(child.getBirthOrder());
         relationshipRepository.save(rel);
-        
+
         if (request.getOtherParentId() != null) {
             Person otherParent = personRepository.findById(request.getOtherParentId())
                     .orElseThrow(() -> new RuntimeException("Other parent not found"));
@@ -201,66 +201,111 @@ public class PersonService {
             rel2.setChildOrder(child.getBirthOrder());
             relationshipRepository.save(rel2);
         }
-        
+
         return toDTO(child);
     }
 
     public PersonDTO addParent(Long childId, PersonCreateRequest request) {
         Person child = personRepository.findById(childId)
                 .orElseThrow(() -> new RuntimeException("Child not found"));
-        Person parent = fromRequest(request);
-        parent.setFamilyTree(child.getFamilyTree());
+        Person newParent = fromRequest(request);
+        newParent.setFamilyTree(child.getFamilyTree());
 
-        Integer childGen = child.getGeneration();
-        if (childGen == null || childGen <= 1) {
-            // Shift all persons in the tree down by 1 generation
-            List<Person> allInTree = personRepository.findByFamilyTreeId(child.getFamilyTree().getId());
-            for (Person p : allInTree) {
-                p.setGeneration((p.getGeneration() != null ? p.getGeneration() : 1) + 1);
-            }
-            personRepository.saveAll(allInTree);
-            parent.setGeneration(1);
-        } else {
-            parent.setGeneration(childGen - 1);
+        Person grandpa = null;
+        if (request.getParentId() != null) {
+            grandpa = personRepository.findById(request.getParentId()).orElse(null);
         }
 
-        parent = personRepository.save(parent);
+        if (grandpa != null) {
+            newParent.setGeneration(grandpa.getGeneration() != null ? grandpa.getGeneration() + 1 : 1);
+        } else {
+            Integer childGen = child.getGeneration();
+            if (childGen == null || childGen <= 1) {
+                newParent.setGeneration(1);
+            } else {
+                newParent.setGeneration(childGen - 1);
+            }
+        }
 
-        // Relationship parent -> child
-        Relationship rel = new Relationship();
-        rel.setPerson(parent);
-        rel.setRelatedPerson(child);
-        rel.setType(RelationshipType.PARENT_CHILD);
-        rel.setChildOrder(child.getBirthOrder() != null ? child.getBirthOrder() : 1);
-        relationshipRepository.save(rel);
+        final Person savedParent = personRepository.save(newParent);
 
-        // Check if child has other existing parents, link as spouse
-        List<Person> existingParents = relationshipRepository.findParentsOfPerson(childId);
-        for (Person existingParent : existingParents) {
-            if (!existingParent.getId().equals(parent.getId())) {
-                existingParent.setGeneration(parent.getGeneration());
-                personRepository.save(existingParent);
+        // 1. Link Grandpa to NewParent (if selected)
+        if (grandpa != null) {
+            Relationship relToGrandpa = new Relationship();
+            relToGrandpa.setPerson(grandpa);
+            relToGrandpa.setRelatedPerson(savedParent);
+            relToGrandpa.setType(RelationshipType.PARENT_CHILD);
+            List<Person> grandpaChildren = relationshipRepository.findChildrenOfPerson(grandpa.getId());
+            relToGrandpa.setChildOrder(request.getBirthOrder() != null ? request.getBirthOrder() : grandpaChildren.size() + 1);
+            relationshipRepository.save(relToGrandpa);
 
-                List<Relationship> spouseRels = relationshipRepository.findSpouseRelationships(parent.getId());
-                boolean alreadySpouse = spouseRels.stream().anyMatch(r ->
-                    (r.getPerson().getId().equals(existingParent.getId()) && r.getRelatedPerson().getId().equals(parent.getId())) ||
-                    (r.getPerson().getId().equals(parent.getId()) && r.getRelatedPerson().getId().equals(existingParent.getId()))
-                );
-                if (!alreadySpouse) {
-                    Relationship spouseRel = new Relationship();
-                    spouseRel.setPerson(parent);
-                    spouseRel.setRelatedPerson(existingParent);
-                    spouseRel.setType(RelationshipType.SPOUSE);
-                    relationshipRepository.save(spouseRel);
+            // Remove existing direct link between Grandpa and Child (since NewParent is now in between)
+            List<Relationship> childParents = relationshipRepository.findByRelatedPersonId(childId);
+            for (Relationship r : childParents) {
+                if (r.getType() == RelationshipType.PARENT_CHILD && r.getPerson().getId().equals(grandpa.getId())) {
+                    relationshipRepository.delete(r);
                 }
             }
         }
 
-        if (request.getCaretakerId() != null) {
-            updateCaretaker(parent, request.getCaretakerId());
+        // 2. Link NewParent to Child
+        Relationship relToChild = new Relationship();
+        relToChild.setPerson(savedParent);
+        relToChild.setRelatedPerson(child);
+        relToChild.setType(RelationshipType.PARENT_CHILD);
+        relToChild.setChildOrder(child.getBirthOrder() != null ? child.getBirthOrder() : 1);
+        relationshipRepository.save(relToChild);
+
+        // 3. Shift generations down for Child and its descendants
+        java.util.Set<Long> visited = new java.util.HashSet<>();
+        int shiftAmount = 0;
+        if (child.getGeneration() != null && savedParent.getGeneration() != null) {
+             if (child.getGeneration() <= savedParent.getGeneration()) {
+                 shiftAmount = savedParent.getGeneration() - child.getGeneration() + 1;
+             }
+        } else if (child.getGeneration() == null) {
+             child.setGeneration(savedParent.getGeneration() + 1);
+             personRepository.save(child);
+        }
+        
+        if (shiftAmount > 0) {
+             shiftGenerationsDown(child, shiftAmount, visited);
         }
 
-        return toDTO(parent);
+        if (request.getCaretakerId() != null) {
+            updateCaretaker(savedParent, request.getCaretakerId());
+        }
+
+        return toDTO(savedParent);
+    }
+
+    private void shiftGenerationsDown(Person startPerson, int amount, java.util.Set<Long> visited) {
+        if (startPerson == null || visited.contains(startPerson.getId())) return;
+        visited.add(startPerson.getId());
+
+        if (startPerson.getGeneration() != null) {
+            startPerson.setGeneration(startPerson.getGeneration() + amount);
+            personRepository.save(startPerson);
+        }
+
+        // Spouses
+        List<Relationship> spouseRels = relationshipRepository.findSpouseRelationships(startPerson.getId());
+        for (Relationship r : spouseRels) {
+            Person spouse = r.getPerson().getId().equals(startPerson.getId()) ? r.getRelatedPerson() : r.getPerson();
+            if (!visited.contains(spouse.getId())) {
+                visited.add(spouse.getId());
+                if (spouse.getGeneration() != null) {
+                    spouse.setGeneration(spouse.getGeneration() + amount);
+                    personRepository.save(spouse);
+                }
+            }
+        }
+
+        // Children
+        List<Person> children = relationshipRepository.findChildrenOfPerson(startPerson.getId());
+        for (Person child : children) {
+            shiftGenerationsDown(child, amount, visited);
+        }
     }
 
     public PersonDTO addSpouse(Long personId, PersonCreateRequest request) {
@@ -270,32 +315,33 @@ public class PersonService {
         spouse.setFamilyTree(person.getFamilyTree());
         spouse.setGeneration(person.getGeneration());
         personRepository.save(spouse);
-        
+
         Relationship rel = new Relationship();
         rel.setPerson(person);
         rel.setRelatedPerson(spouse);
         rel.setType(RelationshipType.SPOUSE);
         relationshipRepository.save(rel);
-        
+
         return toDTO(spouse);
     }
 
     public void reorderChildren(Long parentId, List<Long> orderedChildIds) {
         for (int i = 0; i < orderedChildIds.size(); i++) {
             Long childId = orderedChildIds.get(i);
-            Relationship rel = relationshipRepository.findByPersonIdAndRelatedPersonIdAndType(parentId, childId, RelationshipType.PARENT_CHILD)
+            Relationship rel = relationshipRepository
+                    .findByPersonIdAndRelatedPersonIdAndType(parentId, childId, RelationshipType.PARENT_CHILD)
                     .orElseThrow(() -> new RuntimeException("Relationship not found"));
             rel.setChildOrder(i + 1);
             relationshipRepository.save(rel);
-            
+
             Person child = personRepository.findById(childId).orElse(null);
-            if(child != null) {
+            if (child != null) {
                 child.setBirthOrder(i + 1);
                 personRepository.save(child);
             }
         }
     }
-    
+
     public void deleteBranch(Long personId) {
         // Recursive deletion
         List<Person> children = relationshipRepository.findChildrenOfPerson(personId);
@@ -304,14 +350,14 @@ public class PersonService {
         }
         deletePerson(personId);
     }
-    
+
     public void pasteBranch(Long sourceId, Long targetId) {
         Person source = personRepository.findById(sourceId).orElseThrow(() -> new RuntimeException("Source not found"));
         Person target = personRepository.findById(targetId).orElseThrow(() -> new RuntimeException("Target not found"));
-        
+
         clonePersonRecursive(source, target, target.getFamilyTree());
     }
-    
+
     private void clonePersonRecursive(Person source, Person newParent, FamilyTree targetTree) {
         // Create new person based on source
         Person clone = new Person();
@@ -328,13 +374,14 @@ public class PersonService {
         clone.setPhone(source.getPhone());
         clone.setOccupation(source.getOccupation());
         clone.setFamilyTree(targetTree);
-        clone.setGeneration((newParent != null && newParent.getGeneration() != null ? newParent.getGeneration() : 1) + 1);
-        
+        clone.setGeneration(
+                (newParent != null && newParent.getGeneration() != null ? newParent.getGeneration() : 1) + 1);
+
         List<Person> existingChildren = relationshipRepository.findChildrenOfPerson(newParent.getId());
         clone.setBirthOrder(existingChildren.size() + 1);
-        
+
         personRepository.save(clone);
-        
+
         // Add relationship to new parent
         Relationship rel = new Relationship();
         rel.setPerson(newParent);
@@ -342,14 +389,15 @@ public class PersonService {
         rel.setType(RelationshipType.PARENT_CHILD);
         rel.setChildOrder(clone.getBirthOrder());
         relationshipRepository.save(rel);
-        
+
         // Recursively copy children
         List<Person> sourceChildren = relationshipRepository.findChildrenOfPerson(source.getId());
         for (Person child : sourceChildren) {
             clonePersonRecursive(child, clone, targetTree);
         }
-        
-        // Optionally clone spouses... but that can get complicated. Let's just clone descendants for now.
+
+        // Optionally clone spouses... but that can get complicated. Let's just clone
+        // descendants for now.
     }
 
     private PersonDTO toDTO(Person person) {
@@ -374,7 +422,7 @@ public class PersonService {
                 .familyTreeId(person.getFamilyTree() != null ? person.getFamilyTree().getId() : null)
                 .createdAt(person.getCreatedAt())
                 .build();
-                
+
         // Fetch Father, Mother
         List<Relationship> parentRels = relationshipRepository.findByRelatedPersonId(person.getId());
         for (Relationship rel : parentRels) {
@@ -385,7 +433,7 @@ public class PersonService {
                 } else if (dto.getOtherParentId() == null) {
                     dto.setOtherParentId(parent.getId());
                 }
-                
+
                 if (parent.getGender() == com.giapha.enums.Gender.NAM) {
                     dto.setFatherName(parent.getFullName());
                 } else if (parent.getGender() == com.giapha.enums.Gender.NU) {
@@ -393,14 +441,15 @@ public class PersonService {
                 }
             }
         }
-        
+
         // Fetch Caretaker
         List<FuneralCare> cares = funeralCareRepository.findByDeceasedPersonId(person.getId());
-        cares.stream().filter(c -> c.getCareType() == CareType.CUNG_DUONG && c.getCaretakerPerson() != null).findFirst().ifPresent(c -> {
-            dto.setCaretakerId(c.getCaretakerPerson().getId());
-            dto.setCaretakerName(c.getCaretakerPerson().getFullName());
-        });
-        
+        cares.stream().filter(c -> c.getCareType() == CareType.CUNG_DUONG && c.getCaretakerPerson() != null).findFirst()
+                .ifPresent(c -> {
+                    dto.setCaretakerId(c.getCaretakerPerson().getId());
+                    dto.setCaretakerName(c.getCaretakerPerson().getFullName());
+                });
+
         return dto;
     }
 
