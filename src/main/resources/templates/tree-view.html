@@ -181,12 +181,50 @@
         .info-label { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em; }
         .info-value { font-weight: 500; font-size: 0.95rem; }
         
-        .panel-footer {
-            padding: 16px 20px; border-top: 1px solid var(--border-glass);
-            display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(0,0,0,0.2);
-        }
+        .panel-footer { padding: 16px 20px; border-top: 1px solid var(--border-glass); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(0,0,0,0.2); }
         .panel-footer .btn { width: 100%; justify-content: center; }
         .panel-footer .btn-full { grid-column: span 2; }
+
+        /* Quick Edit Fields in Side Panel */
+        .quick-field { display: flex; flex-direction: column; }
+        .quick-label {
+            font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--text-muted); margin-bottom: 5px; font-weight: 600;
+        }
+        .quick-input {
+            background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px; color: white; padding: 7px 10px; font-size: 0.9rem;
+            outline: none; transition: border-color 0.2s, background 0.2s; width: 100%;
+        }
+        .quick-input:focus { border-color: var(--primary); background: rgba(255,255,255,0.1); }
+        .quick-input[type=number] { -moz-appearance: textfield; }
+        .quick-input[type=number]::-webkit-inner-spin-button { opacity: 0.5; }
+
+        /* Deceased Toggle */
+        .deceased-toggle {
+            display: inline-flex; align-items: center; gap: 10px; cursor: pointer;
+            padding: 8px 12px; border-radius: 10px;
+            background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25);
+            transition: background 0.3s, border-color 0.3s; user-select: none;
+        }
+        .deceased-toggle.is-deceased {
+            background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.35);
+        }
+        .deceased-toggle input[type=checkbox] { display: none; }
+        .deceased-toggle-slider {
+            width: 36px; height: 20px; border-radius: 20px;
+            background: #10b981; position: relative; flex-shrink: 0;
+            transition: background 0.3s;
+        }
+        .deceased-toggle-slider::after {
+            content: ''; position: absolute; top: 3px; left: 3px;
+            width: 14px; height: 14px; border-radius: 50%; background: white;
+            transition: transform 0.3s;
+        }
+        .deceased-toggle.is-deceased .deceased-toggle-slider { background: #ef4444; }
+        .deceased-toggle.is-deceased .deceased-toggle-slider::after { transform: translateX(16px); }
+        .deceased-toggle-text { font-size: 0.9rem; font-weight: 600; color: #10b981; transition: color 0.3s; }
+        .deceased-toggle.is-deceased .deceased-toggle-text { color: #f87171; }
 
         /* Modals */
         .modal-overlay {
@@ -605,59 +643,97 @@
 
         <!-- INFO SIDE PANEL -->
         <aside id="personDetailPanel" class="info-panel">
-            <div class="panel-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div style="flex-grow: 1;">
-                        <!-- Inline Edit Name -->
-                        <input type="text" id="detailNameInput" class="form-control" style="font-size: 1.25rem; font-weight: bold; padding: 4px 8px; width: 100%; border: 1px solid transparent; background: transparent; color: white;" placeholder="Tên thành viên">
-                        <div class="panel-subtitle" id="detailSubtitle" style="padding-left: 8px;">Đời thứ X • Thứ X</div>
+            <!-- Panel Header -->
+            <div class="panel-header" style="padding: 16px 20px; gap: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div style="flex: 1; min-width: 0;">
+                        <input type="text" id="detailNameInput"
+                            style="font-size: 1.3rem; font-weight: 700; font-family: var(--font-heading); width: 100%;
+                                   background: transparent; border: none; border-bottom: 2px solid transparent;
+                                   color: white; padding: 2px 0; outline: none; transition: border-color 0.2s;"
+                            placeholder="Tên thành viên"
+                            onfocus="this.style.borderBottomColor='var(--primary)'"
+                            onblur="this.style.borderBottomColor='transparent'">
+                        <div class="panel-subtitle" id="detailSubtitle" style="margin-top: 2px;">Đời thứ X • Thứ X</div>
                     </div>
-                    <button class="close-icon" id="closeDetailPanel" style="margin-left: 8px;">&times;</button>
+                    <button class="close-icon" id="closeDetailPanel" style="flex-shrink: 0; margin-left: 12px;">&times;</button>
                 </div>
             </div>
-            <div class="panel-body">
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Năm sinh</div>
-                        <!-- Inline Edit Birth Year -->
-                        <input type="number" id="detailBirthYearInput" class="form-control" style="width: 100%; padding: 4px; border: 1px solid #444; background: #222; color: white;" placeholder="VD: 1990">
+
+            <!-- Panel Body -->
+            <div class="panel-body" style="padding: 16px 20px; gap: 0;">
+
+                <!-- Row 1: Năm sinh + Giới tính / Đời -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div class="quick-field">
+                        <label class="quick-label">📅 Năm sinh</label>
+                        <input type="number" id="detailBirthYearInput" class="quick-input" placeholder="VD: 1990" min="1000" max="2100">
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Tình trạng</div>
-                        <!-- Inline Edit Status -->
-                        <div style="display: flex; gap: 4px;">
-                            <select id="detailStatusInput" class="form-control" style="flex: 1; padding: 4px; border: 1px solid #444; background: #222; color: white;">
-                                <option value="alive">Đang sống</option>
-                                <option value="deceased">Đã mất</option>
-                            </select>
-                            <input type="date" id="detailDeathDateInput" class="form-control" style="flex: 1; padding: 4px; border: 1px solid #444; background: #222; color: white; display: none;" title="Ngày mất">
-                        </div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Cha / Mẹ</div>
-                        <div class="info-value" id="detailParents">Không rõ</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Nơi sinh / Quê quán</div>
-                        <div class="info-value" id="detailBirthplace">Không rõ</div>
-                    </div>
-                    <div class="info-item" id="caretakerInfoItem" style="display: none; border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.05);">
-                        <div class="info-label" style="color: var(--primary);">Người cúng dường</div>
-                        <div class="info-value" id="detailCaretaker">Không rõ</div>
-                    </div>
-                    <div class="info-item" style="grid-column: span 2;">
-                        <div class="info-label">Ghi chú / Tiểu sử</div>
-                        <div class="info-value" id="detailBio" style="font-size: 0.875rem; color: var(--text-muted); line-height: 1.6;">Không có thông tin.</div>
+                    <div class="quick-field">
+                        <label class="quick-label">👨‍👩‍👧 Cha / Mẹ</label>
+                        <div class="info-value" id="detailParents" style="font-size:0.88rem; padding-top:4px;">Không rõ</div>
                     </div>
                 </div>
+
+                <!-- Row 2: Tình trạng deceased checkbox -->
+                <div class="quick-field" style="margin-bottom: 10px;">
+                    <label class="quick-label">🕊 Tình trạng</label>
+                    <label class="deceased-toggle">
+                        <input type="checkbox" id="detailDeceasedCheck">
+                        <span class="deceased-toggle-slider"></span>
+                        <span class="deceased-toggle-text" id="deceasedToggleText">Đang sống</span>
+                    </label>
+                </div>
+
+                <!-- Row 3: Ngày mất (hidden by default) -->
+                <div id="detailDeathDateGroup" style="display: none; margin-bottom: 10px;">
+                    <div class="quick-field" style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); border-radius: 10px; padding: 10px 12px;">
+                        <label class="quick-label" style="color: #f87171;">📆 Ngày mất (để làm giỗ)</label>
+                        <input type="date" id="detailDeathDateInput" class="quick-input" style="color-scheme: dark;">
+                    </div>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid var(--border-glass); margin: 4px 0 10px;">
+
+                <!-- Row 4: Quê quán + Ghi chú -->
+                <div class="quick-field" style="margin-bottom: 10px;">
+                    <label class="quick-label">📍 Nơi sinh / Quê quán</label>
+                    <div class="info-value" id="detailBirthplace" style="font-size:0.88rem; padding-top:4px;">Không rõ</div>
+                </div>
+
+                <!-- Caretaker -->
+                <div id="caretakerInfoItem" style="display: none; margin-bottom: 10px;">
+                    <div class="quick-field" style="background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.25); border-radius: 10px; padding: 10px 12px;">
+                        <label class="quick-label" style="color: var(--primary);">🙏 Người cúng dường</label>
+                        <div class="info-value" id="detailCaretaker" style="font-size:0.88rem; padding-top:4px;">Không rõ</div>
+                    </div>
+                </div>
+
+                <!-- Bio -->
+                <div class="quick-field">
+                    <label class="quick-label">📝 Ghi chú / Tiểu sử</label>
+                    <div id="detailBio" style="font-size:0.85rem; color:var(--text-muted); line-height:1.6; padding-top:4px; max-height:60px; overflow-y:auto;">Không có thông tin.</div>
+                </div>
             </div>
-            <div class="panel-footer">
-                <button class="btn btn-success btn-full" id="btn-save-quick" style="display: none; margin-bottom: 8px; font-weight: bold;">Lưu thay đổi</button>
-                <button class="btn btn-primary btn-full" id="btn-edit-person">Sửa chi tiết (Mở form)</button>
-                <button class="btn btn-outline" id="btn-add-parent-panel">Thêm Bố/Mẹ</button>
-                <button class="btn btn-outline" id="btn-add-spouse-panel">Thêm Vợ/Chồng</button>
-                <button class="btn btn-outline btn-full" id="btn-add-child-panel">Thêm Con</button>
-                <button class="btn btn-danger btn-full" id="btn-delete-person" style="margin-top: 8px;">Xóa thành viên này</button>
+
+            <!-- Panel Footer -->
+            <div class="panel-footer" style="padding: 12px 16px; gap: 8px; flex-direction: column;">
+                <!-- Save button (hidden initially) -->
+                <button id="btn-save-quick" style="display:none; width:100%; padding:10px; border-radius:10px;
+                    background: linear-gradient(135deg,#22c55e,#16a34a); color:white; font-weight:700;
+                    border:none; cursor:pointer; font-size:0.95rem; transition:opacity 0.2s;"
+                    onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                    💾 Lưu thay đổi
+                </button>
+
+                <!-- Action buttons -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <button class="btn btn-outline" id="btn-add-parent-panel" style="font-size:0.82rem; padding:8px 6px;">👴 Thêm Bố/Mẹ</button>
+                    <button class="btn btn-outline" id="btn-add-spouse-panel" style="font-size:0.82rem; padding:8px 6px;">💑 Thêm Vợ/Chồng</button>
+                </div>
+                <button class="btn btn-outline btn-full" id="btn-add-child-panel" style="font-size:0.85rem; padding:9px;">👶 Thêm Con</button>
+                <button class="btn btn-primary btn-full" id="btn-edit-person" style="font-size:0.85rem; padding:9px;">✏️ Sửa đầy đủ thông tin</button>
+                <button class="btn btn-danger btn-full" id="btn-delete-person" style="font-size:0.85rem; padding:9px; margin-top:2px;">🗑 Xóa thành viên này</button>
             </div>
         </aside>
 
@@ -967,6 +1043,24 @@
 
         let currentSelectedPerson = null;
 
+        function setDeceasedUI(isDeceased) {
+            const toggle = document.querySelector('.deceased-toggle');
+            const toggleText = document.getElementById('deceasedToggleText');
+            const deathGroup = document.getElementById('detailDeathDateGroup');
+            const checkbox = document.getElementById('detailDeceasedCheck');
+
+            checkbox.checked = isDeceased;
+            if (isDeceased) {
+                toggle.classList.add('is-deceased');
+                toggleText.textContent = '🕊 Đã mất';
+                deathGroup.style.display = 'block';
+            } else {
+                toggle.classList.remove('is-deceased');
+                toggleText.textContent = '💚 Đang sống';
+                deathGroup.style.display = 'none';
+            }
+        }
+
         function showPersonDetail(person) {
             if (!person) return;
             currentSelectedPerson = person;
@@ -977,9 +1071,9 @@
             document.getElementById('detailSubtitle').textContent = `Đời thứ ${person.generation || '?'} • Thứ ${person.birthOrder || '?'}`;
             
             document.getElementById('detailBirthYearInput').value = person.birthDate ? new Date(person.birthDate).getFullYear() : '';
-            document.getElementById('detailStatusInput').value = person.isDeceased ? 'deceased' : 'alive';
+            
+            setDeceasedUI(!!person.isDeceased);
             const deathDateInput = document.getElementById('detailDeathDateInput');
-            deathDateInput.style.display = person.isDeceased ? 'block' : 'none';
             deathDateInput.value = person.deathDate ? person.deathDate.split('T')[0] : '';
             
             let parentsStr = [];
@@ -1003,21 +1097,18 @@
             document.getElementById('btn-save-quick').style.display = 'none';
         }
 
-        // Handle status change
-        document.getElementById('detailStatusInput').addEventListener('change', function() {
-            document.getElementById('detailDeathDateInput').style.display = this.value === 'deceased' ? 'block' : 'none';
+        // Handle checkbox toggle
+        document.getElementById('detailDeceasedCheck').addEventListener('change', function() {
+            setDeceasedUI(this.checked);
+            document.getElementById('btn-save-quick').style.display = 'block';
         });
 
-        // Show save button when inputs change
-        ['detailNameInput', 'detailBirthYearInput', 'detailStatusInput', 'detailDeathDateInput'].forEach(id => {
+        // Show save button when any input changes
+        ['detailNameInput', 'detailBirthYearInput', 'detailDeathDateInput'].forEach(id => {
             const el = document.getElementById(id);
             if(el) {
-                el.addEventListener('input', () => {
-                    document.getElementById('btn-save-quick').style.display = 'block';
-                });
-                el.addEventListener('change', () => {
-                    document.getElementById('btn-save-quick').style.display = 'block';
-                });
+                el.addEventListener('input', () => { document.getElementById('btn-save-quick').style.display = 'block'; });
+                el.addEventListener('change', () => { document.getElementById('btn-save-quick').style.display = 'block'; });
             }
         });
 
@@ -1026,7 +1117,7 @@
             
             const btn = document.getElementById('btn-save-quick');
             btn.disabled = true;
-            btn.textContent = 'Đang lưu...';
+            btn.textContent = '⏳ Đang lưu...';
             
             const nameArr = document.getElementById('detailNameInput').value.trim().split(' ');
             const ho = nameArr[0] || '';
@@ -1034,13 +1125,10 @@
             const tenDem = nameArr.length > 2 ? nameArr.slice(1, -1).join(' ') : '';
             
             const birthYear = document.getElementById('detailBirthYearInput').value;
-            const isDeceased = document.getElementById('detailStatusInput').value === 'deceased';
+            const isDeceased = document.getElementById('detailDeceasedCheck').checked;
             const deathDate = document.getElementById('detailDeathDateInput').value;
             
-            // We need to preserve other fields, so let's fetch the full person first, or just send a PUT
             try {
-                // We use the existing API, we need the full object or backend accepts partial?
-                // Spring Boot PUT usually expects full object. Let's get it.
                 const fullPerson = await apiGet(`/api/persons/${currentSelectedPerson.id}`);
                 
                 fullPerson.ho = ho;
@@ -1048,32 +1136,21 @@
                 fullPerson.ten = ten;
                 fullPerson.isDeceased = isDeceased;
                 
-                if (isDeceased && deathDate) {
-                    fullPerson.deathDate = deathDate;
-                } else {
-                    fullPerson.deathDate = null;
-                }
-                
-                if (birthYear) {
-                    fullPerson.birthDate = `${birthYear}-01-01`;
-                } else {
-                    fullPerson.birthDate = null;
-                }
+                fullPerson.deathDate = (isDeceased && deathDate) ? deathDate : null;
+                fullPerson.birthDate = birthYear ? `${birthYear}-01-01` : null;
                 
                 await apiPut(`/api/persons/${currentSelectedPerson.id}`, fullPerson);
                 
-                showToast("Đã lưu thông tin!", "success");
+                showToast("✅ Đã lưu thông tin!", "success");
                 btn.style.display = 'none';
-                
-                // Refresh tree
                 document.dispatchEvent(new CustomEvent('tree:refresh'));
                 
             } catch (e) {
                 console.error(e);
-                showToast("Lỗi khi lưu", "error");
+                showToast("❌ Lỗi khi lưu", "error");
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Lưu thay đổi';
+                btn.textContent = '💾 Lưu thay đổi';
             }
         });
 
