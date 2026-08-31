@@ -593,16 +593,6 @@ class FamilyTreeVisualization {
     onNodeClick(data) {
         // Dispatch custom event to open side panel
         document.dispatchEvent(new CustomEvent('person:select', { detail: data }));
-        
-        const sidePanel = $('.side-panel');
-        if (sidePanel) {
-            sidePanel.classList.add('active');
-            
-            // Populate basic details (handled by another script or directly here)
-            $('#panel-name').textContent = data.fullName;
-            $('#panel-dates').textContent = `${formatDate(data.birthDate)} - ${data.isDeceased ? formatDate(data.deathDate) : 'Nay'}`;
-            // ... load more
-        }
     }
     
     setupContextMenu() {

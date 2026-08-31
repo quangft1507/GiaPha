@@ -605,22 +605,30 @@
 
         <!-- INFO SIDE PANEL -->
         <aside id="personDetailPanel" class="info-panel">
-            <div class="panel-header">
-                <div>
-                    <h3 id="detailName">Tên thành viên</h3>
-                    <div class="panel-subtitle" id="detailSubtitle">Đời thứ X • Thứ X</div>
+            <div class="panel-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex-grow: 1;">
+                        <!-- Inline Edit Name -->
+                        <input type="text" id="detailNameInput" class="form-control" style="font-size: 1.25rem; font-weight: bold; padding: 4px 8px; width: 100%; border: 1px solid transparent; background: transparent; color: white;" placeholder="Tên thành viên">
+                        <div class="panel-subtitle" id="detailSubtitle" style="padding-left: 8px;">Đời thứ X • Thứ X</div>
+                    </div>
+                    <button class="close-icon" id="closeDetailPanel" style="margin-left: 8px;">&times;</button>
                 </div>
-                <button class="close-icon" id="closeDetailPanel">&times;</button>
             </div>
             <div class="panel-body">
                 <div class="info-grid">
                     <div class="info-item">
-                        <div class="info-label">Ngày sinh</div>
-                        <div class="info-value" id="detailBirthDate">Không rõ</div>
+                        <div class="info-label">Năm sinh</div>
+                        <!-- Inline Edit Birth Year -->
+                        <input type="number" id="detailBirthYearInput" class="form-control" style="width: 100%; padding: 4px; border: 1px solid #444; background: #222; color: white;" placeholder="VD: 1990">
                     </div>
                     <div class="info-item">
                         <div class="info-label">Tình trạng</div>
-                        <div class="info-value" id="detailDeathDate">Đang sống</div>
+                        <!-- Inline Edit Status -->
+                        <select id="detailStatusInput" class="form-control" style="width: 100%; padding: 4px; border: 1px solid #444; background: #222; color: white;">
+                            <option value="alive">Đang sống</option>
+                            <option value="deceased">Đã mất</option>
+                        </select>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Cha / Mẹ</div>
@@ -641,7 +649,8 @@
                 </div>
             </div>
             <div class="panel-footer">
-                <button class="btn btn-primary btn-full" id="btn-edit-person">Chỉnh sửa thông tin</button>
+                <button class="btn btn-success btn-full" id="btn-save-quick" style="display: none; margin-bottom: 8px; font-weight: bold;">Lưu thay đổi</button>
+                <button class="btn btn-primary btn-full" id="btn-edit-person">Sửa chi tiết (Mở form)</button>
                 <button class="btn btn-outline" id="btn-add-parent-panel">Thêm Bố/Mẹ</button>
                 <button class="btn btn-outline" id="btn-add-spouse-panel">Thêm Vợ/Chồng</button>
                 <button class="btn btn-outline btn-full" id="btn-add-child-panel">Thêm Con</button>
@@ -706,15 +715,15 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Ngày sinh</label>
-                            <input type="date" id="birthDate" name="birthDate" class="form-control">
+                            <label>Năm sinh</label>
+                            <input type="number" id="birthDate" name="birthDate" class="form-control" placeholder="VD: 1990">
                         </div>
                         <div class="form-group">
                             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 8px;">
                                 <input type="checkbox" id="isDeceased" name="isDeceased"> Đã qua đời
                             </label>
                             <div id="deathDateGroup" style="display:none; transition: all 0.3s;">
-                                <input type="date" id="deathDate" name="deathDate" class="form-control" placeholder="Ngày mất">
+                                <input type="number" id="deathDate" name="deathDate" class="form-control" placeholder="Năm mất">
                             </div>
                         </div>
                         
@@ -960,16 +969,11 @@
             detailPanel.classList.add('active');
             
             const fullName = `${person.ho || ''} ${person.tenDem || ''} ${person.ten || ''}`.trim() || person.name || person.fullName;
-            document.getElementById('detailName').textContent = fullName;
+            document.getElementById('detailNameInput').value = fullName;
             document.getElementById('detailSubtitle').textContent = `Đời thứ ${person.generation || '?'} • Thứ ${person.birthOrder || '?'}`;
             
-            document.getElementById('detailBirthDate').textContent = person.birthDate ? new Date(person.birthDate).toLocaleDateString('vi-VN') : 'Không rõ';
-            
-            let statusStr = "Đang sống";
-            if (person.isDeceased) {
-                statusStr = person.deathDate ? `Đã mất (${new Date(person.deathDate).toLocaleDateString('vi-VN')})` : 'Đã mất';
-            }
-            document.getElementById('detailDeathDate').textContent = statusStr;
+            document.getElementById('detailBirthYearInput').value = person.birthDate ? new Date(person.birthDate).getFullYear() : '';
+            document.getElementById('detailStatusInput').value = person.isDeceased ? 'deceased' : 'alive';
             
             let parentsStr = [];
             if(person.fatherName) parentsStr.push(person.fatherName);
@@ -987,7 +991,72 @@
             } else {
                 caretakerEl.style.display = 'none';
             }
+            
+            // Hide save button initially
+            document.getElementById('btn-save-quick').style.display = 'none';
         }
+
+        // Show save button when inputs change
+        ['detailNameInput', 'detailBirthYearInput', 'detailStatusInput'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) {
+                el.addEventListener('input', () => {
+                    document.getElementById('btn-save-quick').style.display = 'block';
+                });
+                el.addEventListener('change', () => {
+                    document.getElementById('btn-save-quick').style.display = 'block';
+                });
+            }
+        });
+
+        document.getElementById('btn-save-quick').addEventListener('click', async () => {
+            if (!currentSelectedPerson) return;
+            
+            const btn = document.getElementById('btn-save-quick');
+            btn.disabled = true;
+            btn.textContent = 'Đang lưu...';
+            
+            const nameArr = document.getElementById('detailNameInput').value.trim().split(' ');
+            const ho = nameArr[0] || '';
+            const ten = nameArr.length > 1 ? nameArr[nameArr.length - 1] : '';
+            const tenDem = nameArr.length > 2 ? nameArr.slice(1, -1).join(' ') : '';
+            
+            const birthYear = document.getElementById('detailBirthYearInput').value;
+            const isDeceased = document.getElementById('detailStatusInput').value === 'deceased';
+            
+            // We need to preserve other fields, so let's fetch the full person first, or just send a PUT
+            try {
+                // We use the existing API, we need the full object or backend accepts partial?
+                // Spring Boot PUT usually expects full object. Let's get it.
+                const fullPerson = await apiGet(`/api/persons/${currentSelectedPerson.id}`);
+                
+                fullPerson.ho = ho;
+                fullPerson.tenDem = tenDem;
+                fullPerson.ten = ten;
+                fullPerson.isDeceased = isDeceased;
+                
+                if (birthYear) {
+                    fullPerson.birthDate = `${birthYear}-01-01`;
+                } else {
+                    fullPerson.birthDate = null;
+                }
+                
+                await apiPut(`/api/persons/${currentSelectedPerson.id}`, fullPerson);
+                
+                showToast("Đã lưu thông tin!", "success");
+                btn.style.display = 'none';
+                
+                // Refresh tree
+                document.dispatchEvent(new CustomEvent('tree:refresh'));
+                
+            } catch (e) {
+                console.error(e);
+                showToast("Lỗi khi lưu", "error");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Lưu thay đổi';
+            }
+        });
 
         // --- Panel Actions ---
         document.getElementById('btn-edit-person').addEventListener('click', () => {
@@ -1120,7 +1189,7 @@
                     <td style="font-weight: 500;">${fullName}</td>
                     <td>${p.gender === 'NAM' ? '👨 Nam' : (p.gender === 'NU' ? '👩 Nữ' : 'Khác')}</td>
                     <td>${p.generation || '-'}</td>
-                    <td>${p.birthDate ? new Date(p.birthDate).toLocaleDateString('vi-VN') : '-'}</td>
+                    <td>${p.birthDate ? new Date(p.birthDate).getFullYear() : '-'}</td>
                     <td>
                         <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; background: ${p.isDeceased ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}; color: ${p.isDeceased ? '#ef4444' : '#10b981'};">
                             ${p.isDeceased ? 'Đã mất' : 'Đang sống'}

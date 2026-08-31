@@ -196,7 +196,7 @@ class PersonFormManager {
             
             $('#birthOrder').value = data.birthOrder || 1;
             
-            $('#birthDate').value = data.birthDate ? data.birthDate.split('T')[0] : '';
+            $('#birthDate').value = data.birthDate ? data.birthDate.substring(0, 4) : '';
             $('#birthplace').value = data.birthPlace || '';
             $('#occupation').value = data.occupation || '';
             $('#phoneNumber').value = data.phoneNumber || '';
@@ -205,7 +205,7 @@ class PersonFormManager {
             if (data.isDeceased) {
                 $('#isDeceased').checked = true;
                 $('#deathDateGroup').style.display = 'block';
-                $('#deathDate').value = data.deathDate ? data.deathDate.split('T')[0] : '';
+                $('#deathDate').value = data.deathDate ? data.deathDate.substring(0, 4) : '';
                 const caretakerGroup = $('#caretakerGroup');
                 if(caretakerGroup) {
                     caretakerGroup.style.border = '1px solid rgba(59, 130, 246, 0.6)';
@@ -333,10 +333,10 @@ class PersonFormManager {
             ten: formData.get('firstName'),
             aliasName: formData.get('alias'),
             gender: formData.get('gender'),
-            birthDate: formData.get('birthDate') || null,
+            birthDate: formData.get('birthDate') ? `${formData.get('birthDate')}-01-01` : null,
             birthOrder: parseInt(formData.get('birthOrder')) || 1,
             isDeceased: formData.get('isDeceased') === 'on',
-            deathDate: formData.get('isDeceased') === 'on' ? (formData.get('deathDate') || null) : null,
+            deathDate: formData.get('isDeceased') === 'on' && formData.get('deathDate') ? `${formData.get('deathDate')}-01-01` : null,
             birthPlace: formData.get('birthplace'),
             occupation: formData.get('occupation'),
             phoneNumber: formData.get('phoneNumber'),
