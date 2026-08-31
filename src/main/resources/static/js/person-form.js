@@ -205,7 +205,7 @@ class PersonFormManager {
             if (data.isDeceased) {
                 $('#isDeceased').checked = true;
                 $('#deathDateGroup').style.display = 'block';
-                $('#deathDate').value = data.deathDate ? data.deathDate.substring(0, 4) : '';
+                $('#deathDate').value = data.deathDate ? data.deathDate.split('T')[0] : '';
                 const caretakerGroup = $('#caretakerGroup');
                 if(caretakerGroup) {
                     caretakerGroup.style.border = '1px solid rgba(59, 130, 246, 0.6)';
@@ -336,7 +336,7 @@ class PersonFormManager {
             birthDate: formData.get('birthDate') ? `${formData.get('birthDate')}-01-01` : null,
             birthOrder: parseInt(formData.get('birthOrder')) || 1,
             isDeceased: formData.get('isDeceased') === 'on',
-            deathDate: formData.get('isDeceased') === 'on' && formData.get('deathDate') ? `${formData.get('deathDate')}-01-01` : null,
+            deathDate: formData.get('isDeceased') === 'on' ? (formData.get('deathDate') || null) : null,
             birthPlace: formData.get('birthplace'),
             occupation: formData.get('occupation'),
             phoneNumber: formData.get('phoneNumber'),

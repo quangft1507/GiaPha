@@ -625,10 +625,13 @@
                     <div class="info-item">
                         <div class="info-label">Tình trạng</div>
                         <!-- Inline Edit Status -->
-                        <select id="detailStatusInput" class="form-control" style="width: 100%; padding: 4px; border: 1px solid #444; background: #222; color: white;">
-                            <option value="alive">Đang sống</option>
-                            <option value="deceased">Đã mất</option>
-                        </select>
+                        <div style="display: flex; gap: 4px;">
+                            <select id="detailStatusInput" class="form-control" style="flex: 1; padding: 4px; border: 1px solid #444; background: #222; color: white;">
+                                <option value="alive">Đang sống</option>
+                                <option value="deceased">Đã mất</option>
+                            </select>
+                            <input type="date" id="detailDeathDateInput" class="form-control" style="flex: 1; padding: 4px; border: 1px solid #444; background: #222; color: white; display: none;" title="Ngày mất">
+                        </div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Cha / Mẹ</div>
@@ -723,7 +726,8 @@
                                 <input type="checkbox" id="isDeceased" name="isDeceased"> Đã qua đời
                             </label>
                             <div id="deathDateGroup" style="display:none; transition: all 0.3s;">
-                                <input type="number" id="deathDate" name="deathDate" class="form-control" placeholder="Năm mất">
+                                <label style="font-size: 0.85rem; color: var(--text-muted);">Ngày mất (để làm giỗ)</label>
+                                <input type="date" id="deathDate" name="deathDate" class="form-control">
                             </div>
                         </div>
                         
@@ -974,6 +978,9 @@
             
             document.getElementById('detailBirthYearInput').value = person.birthDate ? new Date(person.birthDate).getFullYear() : '';
             document.getElementById('detailStatusInput').value = person.isDeceased ? 'deceased' : 'alive';
+            const deathDateInput = document.getElementById('detailDeathDateInput');
+            deathDateInput.style.display = person.isDeceased ? 'block' : 'none';
+            deathDateInput.value = person.deathDate ? person.deathDate.split('T')[0] : '';
             
             let parentsStr = [];
             if(person.fatherName) parentsStr.push(person.fatherName);
@@ -996,8 +1003,13 @@
             document.getElementById('btn-save-quick').style.display = 'none';
         }
 
+        // Handle status change
+        document.getElementById('detailStatusInput').addEventListener('change', function() {
+            document.getElementById('detailDeathDateInput').style.display = this.value === 'deceased' ? 'block' : 'none';
+        });
+
         // Show save button when inputs change
-        ['detailNameInput', 'detailBirthYearInput', 'detailStatusInput'].forEach(id => {
+        ['detailNameInput', 'detailBirthYearInput', 'detailStatusInput', 'detailDeathDateInput'].forEach(id => {
             const el = document.getElementById(id);
             if(el) {
                 el.addEventListener('input', () => {
@@ -1023,6 +1035,7 @@
             
             const birthYear = document.getElementById('detailBirthYearInput').value;
             const isDeceased = document.getElementById('detailStatusInput').value === 'deceased';
+            const deathDate = document.getElementById('detailDeathDateInput').value;
             
             // We need to preserve other fields, so let's fetch the full person first, or just send a PUT
             try {
@@ -1034,6 +1047,12 @@
                 fullPerson.tenDem = tenDem;
                 fullPerson.ten = ten;
                 fullPerson.isDeceased = isDeceased;
+                
+                if (isDeceased && deathDate) {
+                    fullPerson.deathDate = deathDate;
+                } else {
+                    fullPerson.deathDate = null;
+                }
                 
                 if (birthYear) {
                     fullPerson.birthDate = `${birthYear}-01-01`;
@@ -1192,7 +1211,7 @@
                     <td>${p.birthDate ? new Date(p.birthDate).getFullYear() : '-'}</td>
                     <td>
                         <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; background: ${p.isDeceased ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}; color: ${p.isDeceased ? '#ef4444' : '#10b981'};">
-                            ${p.isDeceased ? 'Đã mất' : 'Đang sống'}
+                            ${p.isDeceased ? (p.deathDate ? 'Đã mất (' + new Date(p.deathDate).toLocaleDateString('vi-VN') + ')' : 'Đã mất') : 'Đang sống'}
                         </span>
                     </td>
                     <td><span style="color: var(--primary); font-weight:500;">${p.caretakerName || '-'}</span></td>

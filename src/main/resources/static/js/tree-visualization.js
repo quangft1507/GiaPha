@@ -533,13 +533,17 @@ class FamilyTreeVisualization {
 
         // Status Line
         if (data.isDeceased) {
+            let deathText = "🕊 Đã mất";
+            if (data.deathDate) {
+                deathText += ` (${new Date(data.deathDate).toLocaleDateString('vi-VN')})`;
+            }
             card.append("text")
                 .attr("x", nameX)
                 .attr("y", 96)
                 .attr("font-family", "'Inter', sans-serif")
                 .attr("font-size", "12px")
                 .attr("fill", "#ef4444")
-                .text("✝ Đã mất");
+                .text(deathText);
         } else if (isCaretaker) {
             card.append("text")
                 .attr("x", nameX)
