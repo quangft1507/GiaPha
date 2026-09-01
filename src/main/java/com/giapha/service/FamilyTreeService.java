@@ -148,13 +148,37 @@ public class FamilyTreeService {
         if (roots.isEmpty()) {
             roots = List.of(allPersons.get(0));
         }
+
+        // Filter out spouses of other root persons.
+        // Spouses will be rendered alongside their partner — no need to show them as separate roots.
+        if (roots.size() > 1) {
+            java.util.Set<Long> rootIds = roots.stream()
+                    .map(Person::getId)
+                    .collect(java.util.stream.Collectors.toSet());
+            java.util.Set<Long> spousesOfRoots = new java.util.HashSet<>();
+            for (Person r : roots) {
+                List<Long> spouseIds = spouseMap.getOrDefault(r.getId(), new ArrayList<>());
+                for (Long sid : spouseIds) {
+                    if (rootIds.contains(sid)) {
+                        spousesOfRoots.add(sid); // exclude the spouse, keep the "first" root
+                    }
+                }
+            }
+            roots = roots.stream()
+                    .filter(r -> !spousesOfRoots.contains(r.getId()))
+                    .collect(Collectors.toList());
+        }
+
         if (roots.size() == 1) {
             return buildNodeFromMap(roots.get(0), personMap, childrenMap, spouseMap, otherParentMap, caretakerMap, visited);
         }
+
+        // Still multiple roots (truly separate branches) → virtual root wrapper
         TreeNodeDTO virtualRoot = new TreeNodeDTO();
         virtualRoot.setName("Root");
         virtualRoot.setChildren(roots.stream()
                 .map(r -> buildNodeFromMap(r, personMap, childrenMap, spouseMap, otherParentMap, caretakerMap, visited))
+                .filter(n -> n != null)
                 .collect(Collectors.toList()));
         return virtualRoot;
     }

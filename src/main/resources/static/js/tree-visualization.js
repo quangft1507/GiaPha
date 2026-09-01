@@ -280,6 +280,26 @@ class FamilyTreeVisualization {
             
         // Render node content using pure SVG
         node.each((d, i, nodes) => {
+            if (!d.data.id) {
+                // Virtual root node — render a minimal placeholder
+                const sel = d3.select(nodes[i]);
+                sel.append("rect")
+                    .attr("width", this.nodeWidth)
+                    .attr("height", this.nodeHeight)
+                    .attr("rx", 8)
+                    .attr("fill", "rgba(30,30,30,0.5)")
+                    .attr("stroke", "#555")
+                    .attr("stroke-dasharray", "6,4")
+                    .attr("stroke-width", 1.5);
+                sel.append("text")
+                    .text("🌳 Thủy Tổ")
+                    .attr("x", this.nodeWidth / 2)
+                    .attr("y", this.nodeHeight / 2 + 5)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#aaa")
+                    .attr("font-size", "13px");
+                return;
+            }
             this.renderNodeCard(d3.select(nodes[i]), d.data, d.depth + 1);
         });
             
