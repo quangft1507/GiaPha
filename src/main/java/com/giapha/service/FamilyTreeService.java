@@ -149,30 +149,34 @@ public class FamilyTreeService {
             roots = List.of(allPersons.get(0));
         }
 
-        // Filter out spouses of other root persons.
-        // Spouses will be rendered alongside their partner — no need to show them as separate roots.
-        // BUG FIX: skip persons already in spousesOfRoots to avoid excluding BOTH spouses.
+        // Filter out people who are just spouses marrying into the family.
+        // A person in 'roots' should be removed if:
+        // 1. They are a spouse of someone who IS NOT a root (i.e., their partner has parents, meaning the partner is the bloodline descendant).
+        // 2. They are a spouse of someone who IS a root, and we already kept their partner (deduplication).
         if (roots.size() > 1) {
-            java.util.Set<Long> rootIds = roots.stream()
-                    .map(Person::getId)
-                    .collect(java.util.stream.Collectors.toSet());
-            java.util.Set<Long> spousesOfRoots = new java.util.HashSet<>();
+            java.util.Set<Long> rootIds = roots.stream().map(Person::getId).collect(java.util.stream.Collectors.toSet());
+            java.util.Set<Long> toRemove = new java.util.HashSet<>();
+            
             for (Person r : roots) {
-                if (spousesOfRoots.contains(r.getId())) continue; // already excluded, skip
+                if (toRemove.contains(r.getId())) continue;
+                
                 List<Long> spouseIds = spouseMap.getOrDefault(r.getId(), new ArrayList<>());
                 for (Long sid : spouseIds) {
-                    if (rootIds.contains(sid)) {
-                        spousesOfRoots.add(sid); // exclude the spouse, keep r
+                    if (!rootIds.contains(sid)) {
+                        // Partner is NOT a root (they have parents). So 'r' is just a spouse marrying in!
+                        toRemove.add(r.getId());
+                        break;
+                    } else {
+                        // Partner IS also a root. Keep 'r', remove partner.
+                        toRemove.add(sid);
                     }
                 }
             }
-            if (!spousesOfRoots.isEmpty()) {
-                List<Person> filtered = roots.stream()
-                        .filter(r -> !spousesOfRoots.contains(r.getId()))
+            
+            if (!toRemove.isEmpty()) {
+                roots = roots.stream()
+                        .filter(r -> !toRemove.contains(r.getId()))
                         .collect(Collectors.toList());
-                if (!filtered.isEmpty()) {
-                    roots = filtered; // only apply if result is non-empty
-                }
             }
         }
 
