@@ -13,6 +13,6 @@ public interface FuneralCareRepository extends JpaRepository<FuneralCare, Long> 
     List<FuneralCare> findByDeceasedPersonIdAndCareType(Long personId, CareType careType);
     List<FuneralCare> findByDeceasedPersonIdAndIsActiveTrue(Long personId);
 
-    @Query("SELECT f FROM FuneralCare f JOIN f.deceasedPerson d WHERE d.familyTree.id = :treeId")
-    List<FuneralCare> findAllByTreeId(@Param("treeId") Long treeId);
+    @org.springframework.data.jpa.repository.Query("SELECT f FROM FuneralCare f JOIN f.deceasedPerson d WHERE d.familyTree.id = :treeId")
+    List<FuneralCare> findAllByTreeId(@org.springframework.data.repository.query.Param("treeId") Long treeId);
 }
