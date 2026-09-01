@@ -151,22 +151,33 @@ public class FamilyTreeService {
 
         // Filter out spouses of other root persons.
         // Spouses will be rendered alongside their partner — no need to show them as separate roots.
+        // BUG FIX: skip persons already in spousesOfRoots to avoid excluding BOTH spouses.
         if (roots.size() > 1) {
             java.util.Set<Long> rootIds = roots.stream()
                     .map(Person::getId)
                     .collect(java.util.stream.Collectors.toSet());
             java.util.Set<Long> spousesOfRoots = new java.util.HashSet<>();
             for (Person r : roots) {
+                if (spousesOfRoots.contains(r.getId())) continue; // already excluded, skip
                 List<Long> spouseIds = spouseMap.getOrDefault(r.getId(), new ArrayList<>());
                 for (Long sid : spouseIds) {
                     if (rootIds.contains(sid)) {
-                        spousesOfRoots.add(sid); // exclude the spouse, keep the "first" root
+                        spousesOfRoots.add(sid); // exclude the spouse, keep r
                     }
                 }
             }
-            roots = roots.stream()
-                    .filter(r -> !spousesOfRoots.contains(r.getId()))
-                    .collect(Collectors.toList());
+            if (!spousesOfRoots.isEmpty()) {
+                List<Person> filtered = roots.stream()
+                        .filter(r -> !spousesOfRoots.contains(r.getId()))
+                        .collect(Collectors.toList());
+                if (!filtered.isEmpty()) {
+                    roots = filtered; // only apply if result is non-empty
+                }
+            }
+        }
+
+        if (roots.isEmpty()) {
+            roots = List.of(allPersons.get(0));
         }
 
         if (roots.size() == 1) {
