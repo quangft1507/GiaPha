@@ -168,8 +168,74 @@ public class PersonService {
     }
 
     public List<PersonDTO> getPersonsByTreeId(Long treeId) {
-        return personRepository.findByFamilyTreeIdOrderByGenerationAscBirthOrderAsc(treeId)
-                .stream().map(this::toDTO).collect(Collectors.toList());
+        List<Person> persons = personRepository.findByFamilyTreeIdOrderByGenerationAscBirthOrderAsc(treeId);
+        if (persons.isEmpty()) return java.util.Collections.emptyList();
+
+        // Pre-load all relationships and cares for this tree in bulk
+        List<Relationship> allRels = relationshipRepository.findAllByTreeId(treeId);
+        List<FuneralCare> allCares = funeralCareRepository.findAllByTreeId(treeId);
+
+        // Build maps: childId → parent persons
+        java.util.Map<Long, List<Person>> parentsMap = new java.util.HashMap<>();
+        for (Relationship rel : allRels) {
+            if (rel.getType() == RelationshipType.PARENT_CHILD) {
+                parentsMap.computeIfAbsent(rel.getRelatedPerson().getId(), k -> new java.util.ArrayList<>())
+                          .add(rel.getPerson());
+            }
+        }
+
+        // Caretaker map: deceasedId → FuneralCare
+        java.util.Map<Long, FuneralCare> caretakerMap = new java.util.HashMap<>();
+        for (FuneralCare care : allCares) {
+            if (care.getCareType() == CareType.CUNG_DUONG && care.getCaretakerPerson() != null
+                    && care.getDeceasedPerson() != null) {
+                caretakerMap.putIfAbsent(care.getDeceasedPerson().getId(), care);
+            }
+        }
+
+        List<PersonDTO> result = new java.util.ArrayList<>();
+        for (Person person : persons) {
+            PersonDTO dto = PersonDTO.builder()
+                    .id(person.getId())
+                    .ho(person.getHo())
+                    .tenDem(person.getTenDem())
+                    .ten(person.getTen())
+                    .fullName(person.getFullName())
+                    .aliasName(person.getAliasName())
+                    .gender(person.getGender())
+                    .birthDate(person.getBirthDate())
+                    .deathDate(person.getDeathDate())
+                    .isDeceased(person.getIsDeceased())
+                    .birthPlace(person.getBirthPlace())
+                    .avatarUrl(person.getAvatarUrl())
+                    .biography(person.getBiography())
+                    .phone(person.getPhone())
+                    .occupation(person.getOccupation())
+                    .generation(person.getGeneration())
+                    .birthOrder(person.getBirthOrder())
+                    .familyTreeId(treeId)
+                    .createdAt(person.getCreatedAt())
+                    .build();
+
+            List<Person> parents = parentsMap.get(person.getId());
+            if (parents != null) {
+                for (Person parent : parents) {
+                    if (dto.getParentId() == null) dto.setParentId(parent.getId());
+                    else if (dto.getOtherParentId() == null) dto.setOtherParentId(parent.getId());
+                    if (parent.getGender() == com.giapha.enums.Gender.NAM) dto.setFatherName(parent.getFullName());
+                    else if (parent.getGender() == com.giapha.enums.Gender.NU) dto.setMotherName(parent.getFullName());
+                }
+            }
+
+            FuneralCare care = caretakerMap.get(person.getId());
+            if (care != null) {
+                dto.setCaretakerId(care.getCaretakerPerson().getId());
+                dto.setCaretakerName(care.getCaretakerPerson().getFullName());
+            }
+
+            result.add(dto);
+        }
+        return result;
     }
 
     public PersonDTO addChild(Long parentId, PersonCreateRequest request) {

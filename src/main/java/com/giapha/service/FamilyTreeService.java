@@ -61,30 +61,114 @@ public class FamilyTreeService {
     }
 
     public TreeNodeDTO buildTreeData(Long treeId) {
-        List<Person> rootPersons = personRepository.findRootPersons(treeId);
-        if (rootPersons.isEmpty()) {
-            return null;
-        }
-
-        if (rootPersons.size() == 1) {
-            return buildNode(rootPersons.get(0));
-        } else {
-            TreeNodeDTO virtualRoot = new TreeNodeDTO();
-            virtualRoot.setName("Root");
-            virtualRoot.setChildren(rootPersons.stream().map(this::buildNode).collect(Collectors.toList()));
-            return virtualRoot;
-        }
+        return buildTreeFromFlat(treeId, null);
     }
 
     public TreeNodeDTO buildBranchData(Long personId) {
         Person person = personRepository.findById(personId).orElse(null);
-        if (person == null) {
-            return null;
-        }
-        return buildNode(person);
+        if (person == null) return null;
+        Long treeId = person.getFamilyTree().getId();
+        return buildTreeFromFlat(treeId, personId);
     }
 
-    private TreeNodeDTO buildNode(Person person) {
+    /**
+     * Efficient flat-query tree builder.
+     * Loads ALL persons and ALL relationships for a tree in 3 queries total,
+     * then builds the hierarchy in memory — avoids N+1 entirely.
+     */
+    private TreeNodeDTO buildTreeFromFlat(Long treeId, Long rootPersonId) {
+        // 1. Load all persons for this tree
+        List<Person> allPersons = personRepository.findByFamilyTreeIdOrderByGenerationAscBirthOrderAsc(treeId);
+        if (allPersons.isEmpty()) return null;
+
+        // 2. Load all relationships for this tree in ONE query
+        List<Relationship> allRels = relationshipRepository.findAllByTreeId(treeId);
+
+        // 3. Load all funeral cares for this tree in ONE query
+        List<FuneralCare> allCares = funeralCareRepository.findAllByTreeId(treeId);
+
+        // Build lookup maps
+        java.util.Map<Long, Person> personMap = new java.util.HashMap<>();
+        for (Person p : allPersons) personMap.put(p.getId(), p);
+
+        // parent → List<child IDs> (PARENT_CHILD rels)
+        java.util.Map<Long, List<Long>> childrenMap = new java.util.HashMap<>();
+        // person → List<spouse IDs>
+        java.util.Map<Long, List<Long>> spouseMap = new java.util.HashMap<>();
+        // child → other-parent ID
+        java.util.Map<Long, Long> otherParentMap = new java.util.HashMap<>();
+        // child → parent IDs list
+        java.util.Map<Long, List<Long>> parentsMap = new java.util.HashMap<>();
+
+        for (Relationship rel : allRels) {
+            if (rel.getType() == com.giapha.enums.RelationshipType.PARENT_CHILD) {
+                Long parentId = rel.getPerson().getId();
+                Long childId = rel.getRelatedPerson().getId();
+                childrenMap.computeIfAbsent(parentId, k -> new ArrayList<>()).add(childId);
+                parentsMap.computeIfAbsent(childId, k -> new ArrayList<>()).add(parentId);
+            } else if (rel.getType() == com.giapha.enums.RelationshipType.SPOUSE) {
+                Long a = rel.getPerson().getId();
+                Long b = rel.getRelatedPerson().getId();
+                spouseMap.computeIfAbsent(a, k -> new ArrayList<>()).add(b);
+                spouseMap.computeIfAbsent(b, k -> new ArrayList<>()).add(a);
+            }
+        }
+
+        // Other parent map: for each child that has 2 parents, record which is "other"
+        for (java.util.Map.Entry<Long, List<Long>> entry : parentsMap.entrySet()) {
+            if (entry.getValue().size() >= 2) {
+                otherParentMap.put(entry.getKey(), entry.getValue().get(1));
+            }
+        }
+
+        // Funeral care map: deceasedId → caretaker
+        java.util.Map<Long, FuneralCare> caretakerMap = new java.util.HashMap<>();
+        for (FuneralCare care : allCares) {
+            if (care.getCareType() == CareType.CUNG_DUONG && care.getCaretakerPerson() != null
+                    && care.getDeceasedPerson() != null) {
+                caretakerMap.putIfAbsent(care.getDeceasedPerson().getId(), care);
+            }
+        }
+
+        // Find root(s): if rootPersonId given use it, else find persons with no parent
+        java.util.Set<Long> visited = new java.util.HashSet<>();
+        if (rootPersonId != null) {
+            Person root = personMap.get(rootPersonId);
+            if (root == null) return null;
+            return buildNodeFromMap(root, personMap, childrenMap, spouseMap, otherParentMap, caretakerMap, visited);
+        }
+
+        // No root specified → find persons with no parents (root persons)
+        java.util.Set<Long> hasParent = new java.util.HashSet<>(parentsMap.keySet());
+        List<Person> roots = allPersons.stream()
+                .filter(p -> !hasParent.contains(p.getId()))
+                .collect(Collectors.toList());
+
+        if (roots.isEmpty()) {
+            roots = List.of(allPersons.get(0));
+        }
+        if (roots.size() == 1) {
+            return buildNodeFromMap(roots.get(0), personMap, childrenMap, spouseMap, otherParentMap, caretakerMap, visited);
+        }
+        TreeNodeDTO virtualRoot = new TreeNodeDTO();
+        virtualRoot.setName("Root");
+        virtualRoot.setChildren(roots.stream()
+                .map(r -> buildNodeFromMap(r, personMap, childrenMap, spouseMap, otherParentMap, caretakerMap, visited))
+                .collect(Collectors.toList()));
+        return virtualRoot;
+    }
+
+    private TreeNodeDTO buildNodeFromMap(Person person,
+            java.util.Map<Long, Person> personMap,
+            java.util.Map<Long, List<Long>> childrenMap,
+            java.util.Map<Long, List<Long>> spouseMap,
+            java.util.Map<Long, Long> otherParentMap,
+            java.util.Map<Long, FuneralCare> caretakerMap,
+            java.util.Set<Long> visited) {
+
+        if (visited.contains(person.getId())) return null;
+        visited.add(person.getId());
+
         TreeNodeDTO node = TreeNodeDTO.builder()
                 .id(person.getId())
                 .name(person.getFullName())
@@ -104,60 +188,47 @@ public class FamilyTreeService {
                 .build();
 
         // Spouses
-        List<Relationship> spouseRels = relationshipRepository.findSpouseRelationships(person.getId());
-        if (!spouseRels.isEmpty()) {
+        List<Long> spouseIds = spouseMap.get(person.getId());
+        if (spouseIds != null && !spouseIds.isEmpty()) {
             List<TreeNodeDTO> spouses = new ArrayList<>();
-            for (Relationship spouseRel : spouseRels) {
-                // Pick the OTHER person as spouse
-                Person spousePerson = spouseRel.getPerson().getId().equals(person.getId())
-                        ? spouseRel.getRelatedPerson()
-                        : spouseRel.getPerson();
-                spouses.add(TreeNodeDTO.builder()
-                        .id(spousePerson.getId())
-                        .name(spousePerson.getFullName())
-                        .ho(spousePerson.getHo())
-                        .tenDem(spousePerson.getTenDem())
-                        .ten(spousePerson.getTen())
-                        .aliasName(spousePerson.getAliasName())
-                        .gender(spousePerson.getGender())
-                        .birthDate(spousePerson.getBirthDate())
-                        .deathDate(spousePerson.getDeathDate())
-                        .isDeceased(spousePerson.getIsDeceased())
-                        .birthPlace(spousePerson.getBirthPlace())
-                        .avatarUrl(spousePerson.getAvatarUrl())
-                        .generation(spousePerson.getGeneration())
-                        .birthOrder(spousePerson.getBirthOrder())
-                        .occupation(spousePerson.getOccupation())
-                        .build());
+            for (Long sid : spouseIds) {
+                Person sp = personMap.get(sid);
+                if (sp != null) {
+                    spouses.add(TreeNodeDTO.builder()
+                            .id(sp.getId()).name(sp.getFullName())
+                            .ho(sp.getHo()).tenDem(sp.getTenDem()).ten(sp.getTen())
+                            .aliasName(sp.getAliasName()).gender(sp.getGender())
+                            .birthDate(sp.getBirthDate()).deathDate(sp.getDeathDate())
+                            .isDeceased(sp.getIsDeceased()).birthPlace(sp.getBirthPlace())
+                            .avatarUrl(sp.getAvatarUrl()).generation(sp.getGeneration())
+                            .birthOrder(sp.getBirthOrder()).occupation(sp.getOccupation())
+                            .build());
+                }
             }
             node.setSpouses(spouses);
         }
 
-        // Children
-        List<Person> children = relationshipRepository.findChildrenOfPerson(person.getId());
-        if (!children.isEmpty()) {
-            List<TreeNodeDTO> childrenNodes = new ArrayList<>();
-            for (Person child : children) {
-                TreeNodeDTO childNode = buildNode(child);
-                
-                // Find other parent
-                List<Person> parentsOfChild = relationshipRepository.findParentsOfPerson(child.getId());
-                for (Person p : parentsOfChild) {
-                    if (!p.getId().equals(person.getId())) {
-                        childNode.setOtherParentId(p.getId());
-                        break;
+        // Children (recursive in-memory, no extra DB calls)
+        List<Long> childIds = childrenMap.get(person.getId());
+        if (childIds != null && !childIds.isEmpty()) {
+            List<TreeNodeDTO> childNodes = new ArrayList<>();
+            for (Long cid : childIds) {
+                Person child = personMap.get(cid);
+                if (child != null) {
+                    TreeNodeDTO childNode = buildNodeFromMap(child, personMap, childrenMap, spouseMap, otherParentMap, caretakerMap, visited);
+                    if (childNode != null) {
+                        childNode.setOtherParentId(otherParentMap.get(cid));
+                        childNodes.add(childNode);
                     }
                 }
-                
-                childrenNodes.add(childNode);
             }
-            node.setChildren(childrenNodes);
+            node.setChildren(childNodes);
         }
 
-        // Funeral Cares
-        List<FuneralCare> cares = funeralCareRepository.findByDeceasedPersonId(person.getId());
-        if (!cares.isEmpty()) {
-            node.setFuneralCares(cares.stream().map(care -> FuneralCareDTO.builder()
+        // Funeral care
+        FuneralCare care = caretakerMap.get(person.getId());
+        if (care != null) {
+            node.setFuneralCares(List.of(FuneralCareDTO.builder()
                     .id(care.getId())
                     .deceasedPersonId(care.getDeceasedPerson().getId())
                     .deceasedPersonName(care.getDeceasedPerson().getFullName())
@@ -168,7 +239,7 @@ public class FamilyTreeService {
                     .notes(care.getNotes())
                     .assignedDate(care.getAssignedDate())
                     .isActive(care.getIsActive())
-                    .build()).collect(Collectors.toList()));
+                    .build()));
         }
 
         return node;
@@ -179,7 +250,7 @@ public class FamilyTreeService {
                 .id(tree.getId())
                 .name(tree.getName())
                 .description(tree.getDescription())
-                .memberCount(tree.getPersons() != null ? tree.getPersons().size() : 0)
+                .memberCount((int) personRepository.countByFamilyTreeId(tree.getId()))
                 .createdAt(tree.getCreatedAt())
                 .build();
     }

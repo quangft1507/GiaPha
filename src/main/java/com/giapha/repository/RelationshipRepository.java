@@ -26,4 +26,7 @@ public interface RelationshipRepository extends JpaRepository<Relationship, Long
     List<Person> findParentsOfPerson(@Param("childId") Long childId);
 
     Optional<Relationship> findByPersonIdAndRelatedPersonIdAndType(Long personId, Long relatedPersonId, RelationshipType type);
+
+    @Query("SELECT r FROM Relationship r WHERE r.person.familyTree.id = :treeId OR r.relatedPerson.familyTree.id = :treeId")
+    List<Relationship> findAllByTreeId(@Param("treeId") Long treeId);
 }

@@ -33,7 +33,7 @@ public class FamilyTree {
 
 
 
-    @OneToMany(mappedBy = "familyTree", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "familyTree", cascade = CascadeType.ALL, orphanRemoval = true, fetch = jakarta.persistence.FetchType.LAZY)
     @Builder.Default
     private List<Person> persons = new ArrayList<>();
 }

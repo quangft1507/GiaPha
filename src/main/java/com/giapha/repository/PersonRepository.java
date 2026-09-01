@@ -14,4 +14,7 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
 
     @Query("SELECT p FROM Person p WHERE p.familyTree.id = :treeId AND p.id NOT IN (SELECT r.relatedPerson.id FROM Relationship r WHERE r.person.familyTree.id = :treeId)")
     List<Person> findRootPersons(@Param("treeId") Long treeId);
+
+    @Query("SELECT COUNT(p) FROM Person p WHERE p.familyTree.id = :treeId")
+    long countByFamilyTreeId(@Param("treeId") Long treeId);
 }
