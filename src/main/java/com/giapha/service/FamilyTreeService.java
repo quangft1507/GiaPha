@@ -11,6 +11,7 @@ import com.giapha.repository.FamilyTreeRepository;
 import com.giapha.repository.FuneralCareRepository;
 import com.giapha.repository.PersonRepository;
 import com.giapha.repository.RelationshipRepository;
+import com.giapha.enums.CareType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
